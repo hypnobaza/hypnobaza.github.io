@@ -1,0 +1,3477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The_eye_3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        /* Overlay styles */
+        .overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: left;
+            line-height: 1.5;
+            z-index: 10;
+        }
+        .overlay p {
+            margin: 0;
+        }
+        /* Loading screen styles */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .loading-screen.hidden {
+            display: none;
+        }
+        .loading-text {
+            color: white;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 24px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        /* Health bar styles */
+        .health-bar-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            z-index: 10;
+            display: none; /* Hide health bar */
+        }
+        .health-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #ff0000;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        /* Vignette effect */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            background: radial-gradient(circle at center, transparent 0%, rgba(255, 0, 0, 0) 100%);
+            transition: background 0.3s ease;
+        }
+        /* Game over screen styles */
+        .game-over-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        .game-over-title {
+            color: white;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 48px;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+        }
+        .restart-button {
+            padding: 10px 20px;
+            font-size: 18px;
+            font-family: 'Press Start 2P', cursive;
+            background-color: #000000;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .restart-button:hover {
+            background-color: #333333;
+        }
+        #messageDisplay {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        #messageText {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        /* Mobile Controls Styles */
+        .mobile-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px; /* Adjust height as needed */
+            z-index: 99;
+            display: none; /* Hidden by default */
+             pointer-events: none; /* Allows clicks/touches to pass through the container */
+        }
+
+        .joystick-area {
+            position: absolute;
+            bottom: 20px; /* Position slightly above the bottom edge */
+            width: 150px; /* Size of the touch area */
+            height: 150px; /* Size of the touch area */
+            background-color: rgba(255, 255, 255, 0.1); /* Semi-transparent white */
+            border-radius: 50%; /* Make it round */
+            opacity: 0.8; /* Slightly more visible */
+            pointer-events: auto; /* Allows this specific area to receive touch events */
+        }
+
+        .joystick-area.left {
+            left: 20px; /* Position on the left */
+        }
+
+        .joystick-area.right {
+            right: 20px; /* Position on the right */
+        }
+
+        .joystick-thumb {
+            position: absolute;
+            width: 40px; /* Size of the thumbstick */
+            height: 40px; /* Size of the thumbstick */
+            background-color: rgba(255, 255, 255, 0.4); /* Semi-transparent white thumbstick */
+            border-radius: 50%; /* Make it round */
+            pointer-events: none; /* Don't interfere with the joystick area's touch events */
+            transform: translate(-50%, -50%); /* Center the thumbstick */
+        }
+
+        .interaction-button {
+            position: absolute;
+            bottom: 150px; /* Position higher above the joystick area */
+            right: 50px; /* Position near the right joystick */
+            width: 60px; /* Button size */
+            height: 60px; /* Button size */
+            background-color: rgba(255, 255, 255, 0.3); /* Semi-transparent background */
+            color: white;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 24px;
+            border-radius: 50%; /* Make it round */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none; /* Prevent text selection */
+            z-index: 11; /* Above joysticks */
+            pointer-events: auto; /* Allow touch events */
+        }
+
+         /* Media query for landscape orientation adjustments */
+        @media screen and (orientation: landscape) {
+             .mobile-controls {
+                 height: 150px; /* Adjust height for landscape */
+             }
+             .joystick-area {
+                  bottom: 10px; /* Adjust position */
+                  width: 100px; /* Adjust size */
+                  height: 100px; /* Adjust size */
+             }
+             .joystick-area.left {
+                 left: 10px; /* Adjust position */
+             }
+             .joystick-area.right {
+                 right: 10px; /* Adjust position */
+             }
+        }
+
+    </style>
+
+<style>
+  #wakeUpMessage {
+    font-size: 6vw;
+    max-width: 90vw;
+    word-wrap: break-word;
+  }
+
+  @media (max-width: 400px) {
+    #wakeUpMessage {
+      font-size: 5vw;
+    }
+  }
+</style>
+
+<style>
+  #wakeUpMessage,
+  #message,
+  .text-message,
+  #game-over-title {
+    font-size: 5vw;
+    max-width: 90vw;
+    word-wrap: break-word;
+    text-align: center;
+  }
+
+  @media (max-width: 400px) {
+    #wakeUpMessage,
+    #message,
+    .text-message,
+    #game-over-title {
+      font-size: 4.5vw;
+    }
+  }
+</style>
+
+</head>
+<body>
+    <div class="loading-screen">
+        <div class="loading-text">Не дай водолею увидеть тебя! 
+<br> Иди к узлу связи и следуй инструкциям.</div>
+    </div>
+    <div class="vignette"></div>
+    <div class="health-bar-container">
+        <div class="health-bar"></div>
+    </div>
+    <div class="game-over-screen">
+        <div class="game-over-title">Тебя увидел водолей...</div>
+        <button class="restart-button" onclick="window.location.reload()">Попробуй ещё раз</button>
+    </div>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap" rel="stylesheet">
+    <div class="overlay">
+        <p>Используй WASD для движения</p>
+        <p>Кликни чтобы посмотреть вокруг</p>
+    </div>
+    
+    <!-- Game UI Elements -->
+    <div id="progressBarContainer" style="position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); width: 200px; height: 20px; background-color: rgba(0, 0, 0, 0.5); border-radius: 5px; display: none;">
+        <div id="progressBar" style="width: 0%; height: 100%; background-color: white; border-radius: 5px;"></div>
+    </div>
+    
+    <div id="messageDisplay" style="position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); width: 80%; max-width: 600px; background-color: rgba(0, 0, 0, 0.7); color: white; font-family: 'Roboto', sans-serif; padding: 15px; border-radius: 10px; text-align: center; display: none;">
+        <p id="messageText" style="margin: 0;"></p>
+        <!-- Add element for 'Press E to close' prompt -->
+        <p id="closePrompt" style="margin-top: 10px; font-size: 0.9em; color: #aaaaaa; display: none;"></p>
+    </div>
+
+    <!-- Add element for 'Press E to answer' prompt -->
+    <div id="interactPrompt" style="position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); color: white; font-family: 'Roboto', sans-serif; font-weight: 500; text-align: center; display: none; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+        Нажми E чтобы получить инструкцию
+    </div>
+
+    <!-- Add element for the final 'WAKE UP' message -->
+    <div id="wakeUpMessage" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: black; font-family: 'Press Start 2P', cursive;  text-align: center; text-transform: uppercase; z-index: 2001; display: none;">
+        СОЛНЦЕ ТЕБЕ УЛЫБНУЛОСЬ!<br>
+       <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJEAAACRCAAAAADmswX/AAABhUlEQVR42u3bMRLCMAxE0dz/0jBUNLayKy0OxU/lAZI8FxrLsriu++v1ub6j7SXcdmUuRIiMd25fshptb1t9oc4LEaJfiOpQqUcrqvC8/R2IEB0SbRcBNToRIfpLkfysBRURoidFQrYjpzf3onnGhgiR9AB5TzsexXfZiBAZZRE//jLvQIQoImoWCmugdZvyQ0SIWiIhDRIWFSES620CIkRh0SSF91Ojeg+ACFFOpAaccIpkfaYsPogQDUV+jmMdJalzRYQoIlJ3o5Zc3Q8jQnRA5DesqLsBq+MFEaKcqHn006xI1nJEiHKiSU+L1Y8lF0URIRqKgi2Dglc+O0KEKCZqxotfmLdmjQjRVOT/qcGKJmuuiBDlRM0yopXdNEqfiBC1ROPOrGbxZr8fRoQoIbL6av08yjr+b3T6IkKk5SDqkadVUm+kWogQxUTqSuB3A6ihjAjRk6JJabEu2SBCdF5UH5wKy4t1+IQIUU7kZzbNNgHleYgQJUSNBMYpWlqxiwhRQvQGjqzLWQ0thNEAAAAASUVORK5CYII=" alt="QR Code" style="margin-top: 20px; width: 150px;">
+    </div>
+
+    <!-- Mobile Controls Container -->
+    <div id="mobileControls" class="mobile-controls">
+        <div id="moveJoystick" class="joystick-area left"><div class="joystick-thumb"></div></div>
+        <div id="lookJoystick" class="joystick-area right"><div class="joystick-thumb"></div></div>
+        <div id="interactButton" class="interaction-button">E</div> <!-- Virtual E button -->
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Hide loading screen after 3 seconds
+        setTimeout(() => {
+            document.querySelector('.loading-screen').classList.add('hidden');
+        }, 3000);
+
+        // Function to detect if the device is likely mobile
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   (navigator.maxTouchPoints > 0) || // Modern method
+                   (navigator.msMaxTouchPoints > 0); // IE method
+        }
+
+        // Check if on a mobile device and show mobile controls
+        if (isMobileDevice()) {
+            document.getElementById('mobileControls').style.display = 'block';
+            // Hide the desktop controls overlay
+            const desktopOverlay = document.querySelector('.overlay');
+            if (desktopOverlay) {
+                desktopOverlay.style.display = 'none';
+            }
+        }
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xFFC268);
+        const fogColor = 0xFFC268;
+        const fogNear = 2;
+        const fogFar = 35;
+        scene.fog = new THREE.Fog(fogColor, fogNear, fogFar);
+
+        // Audio setup
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const masterGain = audioContext.createGain();
+        masterGain.gain.value = 0.2;
+        masterGain.connect(audioContext.destination);
+
+        // Roar sound setup
+        let roarOscillator = null;
+        let roarGain = null;
+        let roarFilter = null;
+        let highPitchOscillator = null;
+        let highPitchGain = null;
+        let isRoaring = false;
+        let roarIntensity = 0;
+
+        function startRoar() {
+            if (isRoaring) return;
+            isRoaring = true;
+            roarIntensity = 0;
+
+            // Create oscillator for the base roar
+            roarOscillator = audioContext.createOscillator();
+            roarOscillator.type = 'sawtooth';
+            roarOscillator.frequency.value = 40; // Very low frequency
+
+            // Create gain node for volume control
+            roarGain = audioContext.createGain();
+            roarGain.gain.value = 0;
+
+            // Create filter for the roar
+            roarFilter = audioContext.createBiquadFilter();
+            roarFilter.type = 'lowpass';
+            roarFilter.frequency.value = 200;
+            roarFilter.Q.value = 2;
+
+            // Create high-pitch oscillator
+            highPitchOscillator = audioContext.createOscillator();
+            highPitchOscillator.type = 'sine'; // Changed from sawtooth to sine for a more piercing sound
+            highPitchOscillator.frequency.value = 2000; // Increased from 800 to 2000 Hz for a more whistle-like sound
+
+            // Create gain node for high-pitch
+            highPitchGain = audioContext.createGain();
+            highPitchGain.gain.value = 0;
+
+            // Create LFO for frequency modulation
+            const lfo = audioContext.createOscillator();
+            const lfoGain = audioContext.createGain();
+            lfo.frequency.value = 0.5;
+            lfoGain.gain.value = 5;
+
+            // Create second LFO for amplitude modulation
+            const ampLfo = audioContext.createOscillator();
+            const ampLfoGain = audioContext.createGain();
+            ampLfo.frequency.value = 0.2;
+            ampLfoGain.gain.value = 0.3;
+
+            // Create a bandpass filter for the high-pitch sound
+            const highPitchFilter = audioContext.createBiquadFilter();
+            highPitchFilter.type = 'bandpass';
+            highPitchFilter.frequency.value = 2000;
+            highPitchFilter.Q.value = 10; // Sharp resonance for a more piercing sound
+
+            // Connect everything
+            lfo.connect(lfoGain);
+            lfoGain.connect(roarOscillator.frequency);
+            ampLfo.connect(ampLfoGain);
+            ampLfoGain.connect(roarGain.gain);
+            roarOscillator.connect(roarFilter);
+            roarFilter.connect(roarGain);
+            roarGain.connect(masterGain);
+
+            // Connect high-pitch oscillator through the filter
+            highPitchOscillator.connect(highPitchFilter);
+            highPitchFilter.connect(highPitchGain);
+            highPitchGain.connect(masterGain);
+
+            // Start oscillators
+            roarOscillator.start();
+            highPitchOscillator.start();
+            lfo.start();
+            ampLfo.start();
+
+            // Ramp up the volume with crescendo
+            roarGain.gain.setTargetAtTime(0.6, audioContext.currentTime, 0.2);
+            highPitchGain.gain.setTargetAtTime(0.15, audioContext.currentTime, 0.2); // Reduced from 0.2 to 0.15 for better balance
+        }
+
+        function updateRoarIntensity(deltaTime) {
+            if (!isRoaring) return;
+            
+            // Increase intensity over time
+            roarIntensity = Math.min(1, roarIntensity + deltaTime * 0.5);
+            
+            // Update gains based on intensity
+            if (roarGain) {
+                roarGain.gain.setTargetAtTime(0.6 + roarIntensity * 0.4, audioContext.currentTime, 0.1);
+            }
+            if (highPitchGain) {
+                highPitchGain.gain.setTargetAtTime(0.15 + roarIntensity * 0.25, audioContext.currentTime, 0.1); // Reduced from 0.3 to 0.25
+            }
+        }
+
+        function stopRoar() {
+            if (!isRoaring) return;
+            isRoaring = false;
+
+            // Ramp down the volume and stop
+            if (roarGain) {
+                roarGain.gain.setTargetAtTime(0, audioContext.currentTime, 0.2);
+            }
+            if (highPitchGain) {
+                highPitchGain.gain.setTargetAtTime(0, audioContext.currentTime, 0.2);
+            }
+            setTimeout(() => {
+                if (roarOscillator) {
+                    roarOscillator.stop();
+                    roarOscillator = null;
+                }
+                if (highPitchOscillator) {
+                    highPitchOscillator.stop();
+                    highPitchOscillator = null;
+                }
+            }, 200);
+        }
+
+        // Footstep sound setup
+        const footstepGain = audioContext.createGain();
+        footstepGain.gain.value = 0; // Start with gain at 0
+        footstepGain.connect(masterGain);
+
+        // Create a low-pass filter for footsteps
+        const footstepFilter = audioContext.createBiquadFilter();
+        footstepFilter.type = 'lowpass';
+        footstepFilter.frequency.value = 800; // Increased frequency for more 'ch' sound (from 500)
+        footstepFilter.Q.value = 1; // Adjusted Q for a less resonant sound (from 2)
+        footstepFilter.connect(footstepGain);
+
+        // Create footstep noise
+        const footstepNoise = audioContext.createScriptProcessor(4096, 1, 1);
+        footstepNoise.onaudioprocess = (e) => {
+            const output = e.outputBuffer.getChannelData(0);
+            for (let i = 0; i < output.length; i++) {
+                // Generate short bursts of filtered noise for a more percussive sound
+                // Combine higher frequency noise for the 'ch' and lower frequency for impact
+                const highFreqNoise = (Math.random() * 2 - 1) * 0.7; // More high freq
+                const lowFreqNoise = (Math.random() * 2 - 1) * 0.3; // Less low freq
+
+                // Apply a simple decay envelope within the buffer
+                const decay = 1.0 - (i / output.length); // Linear decay across the buffer chunk
+
+                output[i] = (highFreqNoise * 0.7 + lowFreqNoise * 0.3) * decay; // Combine and apply decay
+            }
+        };
+        footstepNoise.connect(footstepFilter);
+
+        // Footstep timing
+        let lastFootstepTime = 0;
+        const footstepInterval = 0.5; // Time between footsteps in seconds
+        let isMoving = false;
+        let wasMoving = false; // Track previous movement state
+
+        // --- Howling Wind Sound Setup ---
+        const windNoiseNode = audioContext.createScriptProcessor(4096, 1, 1);
+        windNoiseNode.onaudioprocess = (e) => {
+            const output = e.outputBuffer.getChannelData(0);
+            for (let i = 0; i < output.length; i++) {
+                output[i] = (Math.random() * 2 - 1); // White noise
+            }
+        };
+
+        const windFilter = audioContext.createBiquadFilter();
+        windFilter.type = 'bandpass';
+        windFilter.frequency.value = 800; // Base frequency for howling
+        windFilter.Q.value = 1.5; // Resonance
+
+        const windGain = audioContext.createGain();
+        windGain.gain.value = 0; // Start quiet
+        windNoiseNode.connect(windFilter);
+        windFilter.connect(windGain);
+
+        // Create StereoPannerNode for wind
+        const windPanner = audioContext.createStereoPanner();
+        windGain.connect(windPanner);
+        windPanner.connect(masterGain);
+
+        // LFOs for modulating wind sound
+        const windFreqLfo = audioContext.createOscillator();
+        const windFreqLfoGain = audioContext.createGain();
+        windFreqLfo.type = 'sine';
+        windFreqLfo.frequency.value = 0.03; // Slow frequency for longer gusts (reduced from 0.1)
+        windFreqLfoGain.gain.value = 400; // Modulation depth for frequency
+
+        windFreqLfo.connect(windFreqLfoGain);
+        windFreqLfoGain.connect(windFilter.frequency);
+
+        const windGainLfo = audioContext.createOscillator();
+        const windGainLfoGain = audioContext.createGain();
+        windGainLfo.type = 'sine';
+        windGainLfo.frequency.value = 0.04; // Slightly different slow frequency for gain modulation (reduced from 0.15)
+        windGainLfoGain.gain.value = 0.2; // Reduced modulation depth for smoother gain changes (reduced from 0.3)
+
+        windGainLfo.connect(windGainLfoGain);
+        windGainLfoGain.connect(windGain.gain);
+
+        // LFO for stereo panning
+        const windPanLfo = audioContext.createOscillator();
+        const windPanLfoGain = audioContext.createGain();
+        windPanLfo.type = 'sine';
+        windPanLfo.frequency.value = 0.05; // Slow frequency for panning speed
+        windPanLfoGain.gain.value = 0.8; // Increased modulation depth for more prominent panning (increased from 0.5)
+
+        windPanLfo.connect(windPanLfoGain);
+        windPanLfoGain.connect(windPanner.pan);
+
+        // Start wind LFOs
+        windFreqLfo.start();
+        windGainLfo.start();
+        windPanLfo.start();
+
+        // Smoothly ramp up wind gain after starting audio
+        function startAudio() {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    windGain.gain.setTargetAtTime(0.2, audioContext.currentTime, 2.0); // Fade in wind over 2 seconds (Reduced target gain from 0.5 to 0.2 for quieter wind)
+                });
+            } else {
+                 windGain.gain.setTargetAtTime(0.2, audioContext.currentTime, 2.0); // Fade in wind over 2 seconds (Reduced target gain from 0.5 to 0.2 for quieter wind)
+            }
+        }
+
+        // Start audio context on first user interaction
+        document.addEventListener('click', startAudio);
+        document.addEventListener('keydown', startAudio);
+
+        // Update frequencies in animation loop
+        function updateAudioFrequencies(deltaTime) {
+            // REMOVED: Ambient hum frequency update
+            // Wind modulation is handled by LFOs directly connected to audio graph
+        }
+
+        const camera = new THREE.PerspectiveCamera(120, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Mobile Controls Logic ---
+        
+        let isMobile = isMobileDevice();
+        let useGyroLook = false; // Declare useGyroLook variable
+        const mobileControlsContainer = document.getElementById('mobileControls');
+        const moveJoystickArea = document.getElementById('moveJoystick');
+        const lookJoystickArea = document.getElementById('lookJoystick');
+
+        let moveVector = new THREE.Vector2();
+        let lookVector = new THREE.Vector2();
+        let moveTouchId = null; // Track the touch identifier for the move joystick
+        let lookTouchId = null; // Track the touch identifier for the look joystick
+        let lookStartTouchX = 0; // Store initial touch X for relative look
+        let lookStartTouchY = 0; // Store initial touch Y for relative look
+
+        // Hide desktop controls and show mobile if on mobile
+        if (isMobile) {
+            mobileControlsContainer.style.display = 'flex'; // Use flex to position children
+            const desktopOverlay = document.querySelector('.overlay');
+            if (desktopOverlay) {
+                desktopOverlay.style.display = 'none';
+            }
+            // Disable pointer lock on mobile
+            document.exitPointerLock = function() {};
+
+            // Add event listener to look joystick
+             lookJoystickArea.addEventListener('touchstart', (e) => {
+                   handleJoystickMove(e, true);
+              });
+             lookJoystickArea.addEventListener('touchmove', (e) => handleJoystickMove(e, true));
+             lookJoystickArea.addEventListener('touchend', (e) => handleJoystickEnd(e, true));
+
+              // Add touch listeners for the move joystick
+             moveJoystickArea.addEventListener('touchstart', (e) => handleJoystickMove(e, false));
+             moveJoystickArea.addEventListener('touchmove', (e) => handleJoystickMove(e, false));
+             moveJoystickArea.addEventListener('touchend', (e) => handleJoystickEnd(e, false));
+        }
+
+        function handleJoystickMove(event, isLookJoystick) {
+            event.preventDefault(); // Prevent scrolling
+
+            const joystickArea = isLookJoystick ? lookJoystickArea : moveJoystickArea;
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const maxDistance = Math.min(rect.width, rect.height) / 2;
+
+            // Process all changed touches
+            for (let i = 0; i < event.changedTouches.length; i++) {
+                const touch = event.changedTouches[i];
+                
+                // If this is a new touch starting in the area, assign it
+                if (event.type === 'touchstart' && (event.target === joystickArea || joystickArea.contains(event.target))) {
+                    if (isLookJoystick && lookTouchId === null) {
+                        lookTouchId = touch.identifier;
+                        lookStartTouchX = touch.clientX; // Store initial touch position
+                        lookStartTouchY = touch.clientY;
+                    } else if (!isLookJoystick && moveTouchId === null) {
+                        moveTouchId = touch.identifier;
+                    }
+                }
+
+                // If this touch is the one we are tracking for this joystick
+                if ((isLookJoystick && touch.identifier === lookTouchId) || (!isLookJoystick && touch.identifier === moveTouchId)) {
+                    // Calculate delta relative to the initial touch position for look
+                    let deltaX = touch.clientX - lookStartTouchX;
+                    let deltaY = touch.clientY - lookStartTouchY;
+
+                    // Scale delta to fit within the joystick area's maxDistance for normalization
+                    const scaleFactor = 1.0 / maxDistance; // Adjust sensitivity here if needed
+                    let normalizedX = deltaX * scaleFactor;
+                    let normalizedY = deltaY * scaleFactor;
+
+                    // Clamp normalized values to a range (e.g., -1 to 1)
+                    normalizedX = Math.max(-1, Math.min(1, normalizedX));
+                    normalizedY = Math.max(-1, Math.min(1, normalizedY));
+
+                    if (isLookJoystick) {
+                        lookVector.set(normalizedX, normalizedY);
+                         // Position the look thumbstick relative to the initial touch
+                         const thumb = lookJoystickArea.querySelector('.joystick-thumb');
+                         if (thumb) {
+                             // Position thumb relative to the center of the joystick area
+                             thumb.style.left = `${centerX + deltaX}px`;
+                             thumb.style.top = `${centerY + deltaY}px`;
+                         }
+                    } else {
+                        // Calculate position relative to the center, clamped to the radius for movement
+                        let deltaX = touch.clientX - centerX;
+                        let deltaY = touch.clientY - centerY;
+
+                        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                        // Clamp distance to maxDistance
+                        if (distance > maxDistance) {
+                            const angle = Math.atan2(deltaY, deltaX);
+                            deltaX = Math.cos(angle) * maxDistance;
+                            deltaY = Math.sin(angle) * maxDistance;
+                        }
+
+                        const normalizedX = deltaX / maxDistance;
+                        const normalizedY = deltaY / maxDistance;
+
+                        moveVector.set(normalizedX, normalizedY);
+                         // Position the move thumbstick
+                         const thumb = moveJoystickArea.querySelector('.joystick-thumb');
+                         if (thumb) {
+                              thumb.style.left = `${deltaX + rect.width / 2}px`;
+                              thumb.style.top = `${deltaY + rect.height / 2}px`;
+                         }
+                    }
+                     // console.log(`Joystick ${isLookJoystick ? 'Look' : 'Move'} Updated:`, isLookJoystick ? lookVector : moveVector);
+                }
+            }
+        }
+
+        function handleJoystickEnd(event, isLookJoystick) {
+            event.preventDefault(); // Prevent scrolling
+            const joystickArea = isLookJoystick ? lookJoystickArea : moveJoystickArea;
+
+            // Process all changed touches
+            for (let i = 0; i < event.changedTouches.length; i++) {
+                const touch = event.changedTouches[i];
+                // If this touch is the one we are tracking for this joystick
+                if ((isLookJoystick && touch.identifier === lookTouchId) || (!isLookJoystick && touch.identifier === moveTouchId)) {
+                    if (isLookJoystick) {
+                        lookVector.set(0, 0);
+                        lookTouchId = null; // Clear the tracked touch
+                        lookStartTouchX = 0; // Reset initial touch position
+                        lookStartTouchY = 0;
+                         // Reset look thumbstick position to center
+                         const thumb = lookJoystickArea.querySelector('.joystick-thumb');
+                         if (thumb) {
+                             thumb.style.left = '50%';
+                             thumb.style.top = '50%';
+                         }
+                    } else {
+                        moveVector.set(0, 0);
+                        moveTouchId = null; // Clear the tracked touch
+                         // Reset move thumbstick position to center
+                         const thumb = moveJoystickArea.querySelector('.joystick-thumb');
+                         if (thumb) {
+                             thumb.style.left = '50%';
+                             thumb.style.top = '50%';
+                         }
+                    }
+                    // console.log(`Joystick ${isLookJoystick ? 'Look' : 'Move'} Ended.`);
+                    // Once the relevant touch is handled, we can exit the loop
+                    break;
+                }
+            }
+        }
+
+        // --- Mobile Controls Logic ---
+        
+        // Function to request Device Orientation permission (for iOS 13+)
+        function requestGyroPermission() {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            useGyroLook = true;
+                            console.log('Gyroscope permission granted.');
+                             // Optional: Hide the look joystick if using gyro
+                             // lookJoystickArea.style.display = 'none';
+                        } else {
+                             useGyroLook = false;
+                             console.log('Gyroscope permission denied.');
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                // Handle older browsers or non-iOS devices
+                useGyroLook = true; // Assume permission is granted automatically
+                console.log('Gyroscope available without explicit permission request.');
+                 // Optional: Hide the look joystick if using gyro
+                 // lookJoystickArea.style.display = 'none';
+            }
+        }
+
+        // Hide desktop controls and show mobile if on mobile
+        if (isMobile) {
+            mobileControlsContainer.style.display = 'flex'; // Use flex to position children
+            const desktopOverlay = document.querySelector('.overlay');
+            if (desktopOverlay) {
+                desktopOverlay.style.display = 'none';
+            }
+            // Disable pointer lock on mobile
+            document.exitPointerLock = function() {};
+
+            // Add event listener to look joystick to request gyro permission on first touch
+            lookJoystickArea.addEventListener('touchstart', (e) => {
+                 handleJoystickMove(e, true);
+            });
+            lookJoystickArea.addEventListener('touchmove', (e) => handleJoystickMove(e, true));
+            lookJoystickArea.addEventListener('touchend', (e) => handleJoystickEnd(e, true));
+
+             // Add touch listeners for the move joystick
+            moveJoystickArea.addEventListener('touchstart', (e) => handleJoystickMove(e, false));
+            moveJoystickArea.addEventListener('touchmove', (e) => handleJoystickMove(e, false));
+            moveJoystickArea.addEventListener('touchend', (e) => handleJoystickEnd(e, false));
+
+
+             // Device orientation event listener for gyroscope look
+            window.addEventListener('deviceorientation', (event) => {
+                    if (!isMobile || !useGyroLook || !event.alpha || !event.beta || !event.gamma) return;
+
+                    // Store initial orientation on first event
+                    if (!initialDeviceOrientation) {
+                        initialDeviceOrientation = { alpha: event.alpha, beta: event.beta, gamma: event.gamma };
+                        console.log('Initial Gyro Orientation:', initialDeviceOrientation);
+                    }
+
+                    // Calculate rotation deltas relative to initial orientation
+                    // This is a simplified approach and might need adjustment based on device orientation
+                    // Using `event.webkitCompassHeading` if available on iOS for better yaw
+                    const currentAlpha = (typeof event.webkitCompassHeading !== 'undefined') ? event.webkitCompassHeading : event.alpha;
+
+                    const alphaDelta = currentAlpha - initialDeviceOrientation.alpha;
+                    const betaDelta = event.beta - initialDeviceOrientation.beta;
+                    const gammaDelta = event.gamma - initialDeviceOrientation.gamma;
+
+                    // Convert degrees to radians and apply sensitivity
+                    const gyroSensitivity = 0.005; // Adjust sensitivity
+
+                    // Apply deltas to yaw and pitch
+                    // Note: Yaw needs careful handling of the 0/360 boundary
+                    // yaw -= THREE.MathUtils.degToRad(alphaDelta) * gyroSensitivity; // Disabled gyro yaw
+
+                    // Ensure yaw wraps correctly (optional, Three.js handles this but good practice)
+                    if (yaw > Math.PI * 2) yaw -= Math.PI / 2;
+                    if (yaw < 0) yaw += Math.PI / 2;
+
+                    // pitch += THREE.MathUtils.degToRad(betaDelta) * gyroSensitivity; // Disabled gyro pitch
+
+                    // Clamp pitch to prevent camera flipping
+                    pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+                    // Update camera rotation outside the animate loop for responsiveness
+                    camera.rotation.order = 'YXZ';
+                    // camera.rotation.y = yaw; // Disabled gyro camera update
+                    // camera.rotation.x = -pitch; // Disabled gyro camera update
+                    // camera.rotation.z = THREE.MathUtils.degToRad(gammaDelta) * gyroSensitivity; // Apply roll if needed
+
+                    // Update initial orientation for the next frame to get relative movement
+                    initialDeviceOrientation = { alpha: currentAlpha, beta: event.beta, gamma: event.gamma };
+
+                    console.log('Gyro Update - alpha:', event.alpha, 'beta:', event.beta, 'gamma:', event.gamma, 'currentAlpha:', currentAlpha);
+                    console.log('Gyro Deltas - alpha:', alphaDelta, 'beta:', betaDelta, 'gamma:', gammaDelta);
+                    console.log('Gyro Radians - alpha:', THREE.MathUtils.degToRad(alphaDelta), 'beta:', THREE.MathUtils.degToRad(betaDelta), 'gamma:', THREE.MathUtils.degToRad(gammaDelta));
+                    console.log('Applied Gyro - yaw:', yaw, 'pitch:', pitch);
+
+            });
+        }
+
+        // Snow particle system
+        const snowParticles = [];
+        const snowCount = 3000;
+        const snowGeometry = new THREE.BufferGeometry();
+        const snowPositions = new Float32Array(snowCount * 3);
+        const snowMaterial = new THREE.PointsMaterial({
+            color: 0xcccccc,
+            size: 0.05,
+            transparent: true,
+            opacity: 0.4,
+            sizeAttenuation: true
+        });
+
+        // Initialize snow positions
+        for (let i = 0; i < snowCount; i++) {
+            const i3 = i * 3;
+            snowPositions[i3] = (Math.random() - 0.5) * 200; // x
+            snowPositions[i3 + 1] = Math.random() * 30 + 5; // y (start closer to ground, between 5 and 35 units high)
+            snowPositions[i3 + 2] = (Math.random() - 0.5) * 200; // z
+        }
+
+        snowGeometry.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+        const snowSystem = new THREE.Points(snowGeometry, snowMaterial);
+        scene.add(snowSystem);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.7); // Increased from 0.5 to 0.7
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(20, 25, -20); // Adjusted for 16:00 position (higher than 18:00)
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 200;
+        directionalLight.shadow.camera.left = -100;
+        directionalLight.shadow.camera.right = 100;
+        directionalLight.shadow.camera.top = 100;
+        directionalLight.shadow.camera.bottom = -100;
+        directionalLight.shadow.radius = 2;
+        directionalLight.shadow.bias = -0.0005;
+        directionalLight.shadow.normalBias = 0.02;
+        directionalLight.shadow.darkness = 0.15; // Reduced from 0.3 to 0.15
+        
+        // Update shadow camera to match light direction
+        directionalLight.shadow.camera.updateProjectionMatrix();
+        directionalLight.shadow.camera.position.copy(directionalLight.position);
+        directionalLight.shadow.camera.lookAt(new THREE.Vector3(0, 0, 0));
+        
+        scene.add(directionalLight);
+
+        // Ground plane
+        const planeGeometry = new THREE.PlaneGeometry(200, 200);
+        const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.y = 0;
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        // Create houses in a grid pattern
+        const houseWidth = 5;
+        const houseHeight = 20;
+        const houseDepth = 5;
+        const spacing = 10;
+        const gridSize = 9;
+        const houseGeometry = new THREE.BoxGeometry(houseWidth, houseHeight, houseDepth);
+        const houseMaterial = new THREE.MeshStandardMaterial({ color: 0xFF9700 });
+        const sidewalkGeometry = new THREE.BoxGeometry(houseWidth * 1.4, 0.2, houseDepth * 1.4);
+        const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: 0x404040 });
+        const squareGeometry = new THREE.CylinderGeometry(houseWidth * 0.7, houseWidth * 0.7, 0.2, 32);
+        const squareMaterial = new THREE.MeshStandardMaterial({ color: 0x404040 });
+        const houses = [];
+
+        // Create the floating eye
+        const eyeGroup = new THREE.Group();
+        const eyeSize = 15; // Size of the eye
+        const eyeHeight = 40; // Increased from 35 to 40
+        
+        // Create eye white
+        const eyeWhiteGeometry = new THREE.SphereGeometry(eyeSize, 32, 32);
+        const eyeWhiteMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 5.0, // Increased from 3.0 to 5.0
+            fog: false, // Disable fog for the eye
+            transparent: true,
+            opacity: 0.9
+        });
+        const eyeWhite = new THREE.Mesh(eyeWhiteGeometry, eyeWhiteMaterial);
+        eyeWhite.castShadow = true;
+        eyeWhite.receiveShadow = true;
+        eyeGroup.add(eyeWhite);
+        
+        // Create iris
+        const irisSize = eyeSize * 0.6;
+        const irisGeometry = new THREE.SphereGeometry(irisSize, 32, 32);
+        const irisMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x402010, // Less saturated dark orange
+            emissive: 0x402010, // Less saturated dark orange
+            emissiveIntensity: 2.0,
+            fog: false,
+            transparent: true,
+            opacity: 0.9
+        });
+        const iris = new THREE.Mesh(irisGeometry, irisMaterial);
+        iris.position.z = eyeSize * 0.8;
+        iris.castShadow = true;
+        iris.receiveShadow = true;
+        eyeGroup.add(iris);
+        
+        // Create pupil
+        const pupilSize = irisSize * 0.4;
+        const pupilGeometry = new THREE.SphereGeometry(pupilSize, 32, 32);
+        const pupilMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x000000, // Pure black color
+            emissive: 0x000000, // Pure black color
+            emissiveIntensity: 5.0,
+            fog: false,
+            transparent: true,
+            opacity: 0.9,
+            shadowSide: THREE.DoubleSide, // Prevent self-shadowing
+            receiveShadow: false, // Disable shadow receiving
+            castShadow: false // Disable shadow casting
+        });
+        const pupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+        pupil.position.z = irisSize * 0.8;
+        pupil.castShadow = false;
+        pupil.receiveShadow = false;
+        iris.add(pupil);
+        
+        // Position the eye high above the city
+        eyeGroup.position.y = eyeHeight;
+        scene.add(eyeGroup);
+
+        // Eye sight tracking variables
+        let eyeSightTimer = 0;
+        const alertSightTime = 1.0;
+        const angrySightTime = 2.0;
+        let eyeState = 'normal';
+        const eyeRaycaster = new THREE.Raycaster();
+        const eyeRayDirection = new THREE.Vector3();
+        const eyeRayOrigin = new THREE.Vector3();
+        const maxSightDistance = 100;
+        const pupilDilationScale = 1.25;
+        const angryPupilDilationScale = 1.75;
+        const pupilShakeAmount = 0.2; // Increased from 0.1 to 0.2 for more dramatic shaking
+        const pupilShakeSpeed = 10.0;
+        const angryPupilShakeSpeed = 40.0;
+        let lastShakeTime = 0; // Track last shake update time
+        const shakeUpdateInterval = 0.05; // Update shake direction every 0.05 seconds
+        
+        // Spatial grid for collision detection
+        const gridCellSize = spacing;
+        const spatialGrid = new Map();
+        function getGridKey(x, z) {
+            return `${Math.floor(x / gridCellSize)},${Math.floor(z / gridCellSize)}`;
+        }
+        function addToSpatialGrid(house) {
+            const key = getGridKey(house.position.x, house.position.z);
+            if (!spatialGrid.has(key)) {
+                spatialGrid.set(key, []);
+            }
+            spatialGrid.get(key).push(house);
+        }
+
+        // Create a list of all possible house positions
+        const allPositions = [];
+        for (let i = 1; i < gridSize - 1; i++) { // Start from 1 and end at gridSize-1 to exclude edges
+            for (let j = 1; j < gridSize - 1; j++) { // Start from 1 and end at gridSize-1 to exclude edges
+                allPositions.push({i, j});
+            }
+        }
+
+        // Randomly select 10% of positions to be empty
+        const emptyPositions = new Set();
+        const emptyCount = Math.floor(allPositions.length * 0.1);
+        while (emptyPositions.size < emptyCount) {
+            const randomIndex = Math.floor(Math.random() * allPositions.length);
+            const pos = allPositions[randomIndex];
+            emptyPositions.add(`${pos.i},${pos.j}`);
+        }
+
+        // First, create all ground elements (sidewalks and squares)
+        for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+                const isEdge = i === 0 || i === gridSize - 1 || j === 0 || j === gridSize - 1;
+                const isEmpty = !isEdge && emptyPositions.has(`${i},${j}`);
+                
+                if (isEmpty) {
+                    // Add square (cylinder) for empty spaces
+                    const square = new THREE.Mesh(squareGeometry, squareMaterial);
+                    square.position.x = (i - gridSize / 2) * spacing;
+                    square.position.z = (j - gridSize / 2) * spacing;
+                    square.position.y = 0.1;
+                    square.receiveShadow = true;
+                    scene.add(square);
+                } else {
+                    // Add sidewalk around existing houses and edges
+                    const sidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
+                    sidewalk.position.x = (i - gridSize / 2) * spacing;
+                    sidewalk.position.z = (j - gridSize / 2) * spacing;
+                    sidewalk.position.y = 0.1;
+                    sidewalk.receiveShadow = true;
+                    scene.add(sidewalk);
+                }
+            }
+        }
+
+        // Then, create all houses
+        for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+                const isEdge = i === 0 || i === gridSize - 1 || j === 0 || j === gridSize - 1;
+                const isEmpty = !isEdge && emptyPositions.has(`${i},${j}`);
+                
+                if (!isEmpty) {
+                    const house = new THREE.Mesh(houseGeometry, houseMaterial);
+                    house.position.x = (i - gridSize / 2) * spacing;
+                    house.position.z = (j - gridSize / 2) * spacing;
+                    house.position.y = houseHeight / 2;
+                    house.castShadow = true;
+                    house.receiveShadow = true;
+                    scene.add(house);
+                    houses.push(house);
+                    addToSpatialGrid(house);
+                }
+            }
+        }
+
+        // Add grey wall around the city
+        const wallHeight = houseHeight / 2; // Reduced wall height to half of house height
+        const wallThickness = 2;
+        const wallOffset = 20;
+        const wallMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x404040,
+            roughness: 0.8,
+            metalness: 0.2,
+            side: THREE.DoubleSide // Add this to ensure proper shadow casting
+        });
+        const northWallGeometry = new THREE.BoxGeometry(gridSize * spacing + 2 * wallOffset, wallHeight, wallThickness);
+        const northWall = new THREE.Mesh(northWallGeometry, wallMaterial);
+        northWall.position.set(0, wallHeight / 2, -(gridSize * spacing / 2 + wallOffset));
+        northWall.castShadow = true;
+        northWall.receiveShadow = true;
+        scene.add(northWall);
+        houses.push(northWall);
+        addToSpatialGrid(northWall);
+        
+        const southWallGeometry = new THREE.BoxGeometry(gridSize * spacing + 2 * wallOffset, wallHeight, wallThickness);
+        const southWall = new THREE.Mesh(southWallGeometry, wallMaterial);
+        southWall.position.set(0, wallHeight / 2, gridSize * spacing / 2 + wallOffset);
+        southWall.castShadow = true;
+        southWall.receiveShadow = true;
+        scene.add(southWall);
+        houses.push(southWall);
+        addToSpatialGrid(southWall);
+        
+        const eastWallGeometry = new THREE.BoxGeometry(wallThickness, wallHeight, gridSize * spacing + 2 * wallOffset);
+        const eastWall = new THREE.Mesh(eastWallGeometry, wallMaterial);
+        eastWall.position.set(gridSize * spacing / 2 + wallOffset, wallHeight / 2, 0);
+        eastWall.castShadow = true;
+        eastWall.receiveShadow = true;
+        scene.add(eastWall);
+        houses.push(eastWall);
+        addToSpatialGrid(eastWall);
+        
+        const westWallGeometry = new THREE.BoxGeometry(wallThickness, wallHeight, gridSize * spacing + 2 * wallOffset);
+        const westWall = new THREE.Mesh(westWallGeometry, wallMaterial);
+        westWall.position.set(-(gridSize * spacing / 2 + wallOffset), wallHeight / 2, 0);
+        westWall.castShadow = true;
+        westWall.receiveShadow = true;
+        scene.add(westWall);
+        houses.push(westWall);
+        addToSpatialGrid(westWall);
+
+        // Wire network system
+        const wireNetwork = [];
+        const wireMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x111111,
+            linewidth: 1
+        });
+        const wireSegments = 8;
+        const wireSagAmount = 2;
+        const wireSwayAmount = 0.05;
+        const wireSwaySpeed = 0.2;
+
+        function getHouseConnectionPoint(house, isHighWire) {
+            // Get the actual house position in the grid
+            const gridX = Math.round((house.position.x + (gridSize * spacing / 2)) / spacing);
+            const gridZ = Math.round((house.position.z + (gridSize * spacing / 2)) / spacing);
+            
+            // Choose a side to connect from (0: front, 1: right, 2: back, 3: left)
+            const side = Math.floor(Math.random() * 4);
+            
+            let x = house.position.x;
+            let z = house.position.z;
+            
+            // Position the connection point slightly inside the house on the chosen side
+            switch(side) {
+                case 0: // front
+                    x += (Math.random() - 0.5) * (houseWidth - 0.2);
+                    z += houseDepth / 2 - 0.1;
+                    break;
+                case 1: // right
+                    x += houseWidth / 2 - 0.1;
+                    z += (Math.random() - 0.5) * (houseDepth - 0.2);
+                    break;
+                case 2: // back
+                    x += (Math.random() - 0.5) * (houseWidth - 0.2);
+                    z -= houseDepth / 2 - 0.1;
+                    break;
+                case 3: // left
+                    x -= houseWidth / 2 - 0.1;
+                    z += (Math.random() - 0.5) * (houseDepth - 0.2);
+                    break;
+            }
+            
+            return new THREE.Vector3(
+                x,
+                isHighWire ? 
+                    house.position.y + houseHeight * 0.4 : // High wire at 40% of house height
+                    house.position.y - houseHeight * 0.1,  // Low wire at 10% from bottom (moved up from 20%)
+                z
+            );
+        }
+
+        function createWire(startHouse, endHouse, isHighWire) {
+            const start = getHouseConnectionPoint(startHouse, isHighWire);
+            const end = getHouseConnectionPoint(endHouse, isHighWire);
+            const points = [];
+
+            // Create points for the wire with controlled sag
+            for (let i = 0; i <= wireSegments; i++) {
+                const t = i / wireSegments;
+                const basePos = new THREE.Vector3().lerpVectors(start, end, t);
+                const sag = Math.sin(t * Math.PI) * wireSagAmount;
+                points.push(new THREE.Vector3(
+                    basePos.x,
+                    basePos.y - sag,
+                    basePos.z
+                ));
+            }
+
+            // Create a line geometry for the wire
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const wire = new THREE.Line(geometry, wireMaterial);
+            wire.start = start;
+            wire.end = end;
+            wire.points = points;
+            wire.time = Math.random() * Math.PI * 2;
+            scene.add(wire);
+
+            return wire;
+        }
+
+        // Create wire connections between adjacent houses
+        const connectedHouses = new Set();
+        const disconnectedHouses = new Set();
+        
+        // First, randomly select 10% of houses to be disconnected
+        const totalHouses = houses.length;
+        const disconnectedCount = Math.floor(totalHouses * 0.1);
+        while (disconnectedHouses.size < disconnectedCount) {
+            const randomIndex = Math.floor(Math.random() * totalHouses);
+            disconnectedHouses.add(randomIndex);
+        }
+        
+        // Then, connect houses in a grid pattern (only for non-disconnected houses)
+        for (let i = 0; i < houses.length; i++) {
+            if (disconnectedHouses.has(i)) continue; // Skip disconnected houses
+            
+            const currentHouse = houses[i];
+            const gridX = Math.round((currentHouse.position.x + (gridSize * spacing / 2)) / spacing);
+            const gridZ = Math.round((currentHouse.position.z + (gridSize * spacing / 2)) / spacing);
+            
+            // Try to connect to adjacent houses
+            const adjacentPositions = [
+                {x: gridX - 1, z: gridZ}, // left
+                {x: gridX + 1, z: gridZ}, // right
+                {x: gridX, z: gridZ - 1}, // front
+                {x: gridX, z: gridZ + 1}  // back
+            ];
+            
+            // Randomly decide whether to connect to each adjacent house
+            for (const pos of adjacentPositions) {
+                if (Math.random() > 0.6) continue;
+                
+                // Find the house at this grid position
+                const targetX = (pos.x - gridSize / 2) * spacing;
+                const targetZ = (pos.z - gridSize / 2) * spacing;
+                
+                for (let j = 0; j < houses.length; j++) {
+                    if (i === j || disconnectedHouses.has(j)) continue; // Skip self and disconnected houses
+                    
+                    const otherHouse = houses[j];
+                    if (Math.abs(otherHouse.position.x - targetX) < 0.1 && 
+                        Math.abs(otherHouse.position.z - targetZ) < 0.1) {
+                        
+                        // Create high wires
+                        const highWireCount = Math.floor(Math.random() * 2) + 1; // 1 or 2 high wires
+                        for (let w = 0; w < highWireCount; w++) {
+                            const wire = createWire(currentHouse, otherHouse, true);
+                            wireNetwork.push(wire);
+                        }
+                        
+                        connectedHouses.add(i);
+                        connectedHouses.add(j);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Bird flock setup
+        const birdFlock = [];
+        const flockSize = 20;
+        const maxSpeed = 0.08;
+        const minSpeed = 0.05;
+        const innerCircleRadius = 15; // Smaller circle
+        const outerCircleRadius = 25; // Larger circle
+        const circleHeight = houseHeight + 1;
+        const heightVariation = 2;
+
+        function createBird(isInnerCircle) {
+            const birdGroup = new THREE.Group();
+            
+            // Create wings
+            const wingGeometry = new THREE.PlaneGeometry(0.1, 0.5);
+            const wingMaterial = new THREE.MeshStandardMaterial({
+                color: 0x333333,
+                side: THREE.DoubleSide
+            });
+            
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-0.1, 0, 0);
+            leftWing.rotation.z = Math.PI / 4;
+            birdGroup.add(leftWing);
+            
+            const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rightWing.position.set(0.1, 0, 0);
+            rightWing.rotation.z = -Math.PI / 4;
+            birdGroup.add(rightWing);
+            
+            // Create body
+            const bodyGeometry = new THREE.SphereGeometry(0.1, 1, 2);
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.set(0, -0.2, 0);
+            birdGroup.add(body);
+            
+            // Set initial position and movement properties
+            const angle = Math.random() * Math.PI * 2;
+            const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+            const heightOffset = (Math.random() - 0.5) * heightVariation;
+            const radiusOffset = (Math.random() - 0.5) * 3;
+            const circleRadius = isInnerCircle ? innerCircleRadius : outerCircleRadius;
+            
+            birdGroup.position.set(
+                Math.cos(angle) * (circleRadius + radiusOffset),
+                circleHeight + heightOffset,
+                Math.sin(angle) * (circleRadius + radiusOffset)
+            );
+            
+            birdGroup.angle = angle;
+            birdGroup.speed = speed;
+            birdGroup.wingAngle = 0;
+            birdGroup.wingSpeed = 2.4 + Math.random() * 0.4; // Increased from 1.2 + Math.random() * 0.2
+            birdGroup.heightOffset = heightOffset;
+            birdGroup.radiusOffset = radiusOffset;
+            birdGroup.circleRadius = circleRadius;
+            
+            scene.add(birdGroup);
+            return birdGroup;
+        }
+
+        // Create birds in two circles
+        for (let i = 0; i < flockSize / 2; i++) {
+            birdFlock.push(createBird(true)); // Inner circle
+            birdFlock.push(createBird(false)); // Outer circle
+        }
+
+        function updateBird(bird) {
+            // Update wing animation
+            bird.wingAngle += bird.wingSpeed * deltaTime;
+            const flapAngle = Math.sin(bird.wingAngle) * 0.3;
+            bird.children[0].rotation.z = Math.PI / 4 + flapAngle;
+            bird.children[1].rotation.z = -Math.PI / 4 - flapAngle;
+
+            // Update circular movement
+            bird.angle += bird.speed * deltaTime;
+            if (bird.angle > Math.PI * 2) bird.angle -= Math.PI * 2;
+            
+            // Calculate new position with radius offset
+            const newX = Math.cos(bird.angle) * (bird.circleRadius + bird.radiusOffset);
+            const newZ = Math.sin(bird.angle) * (bird.circleRadius + bird.radiusOffset);
+            
+            // Calculate velocity for rotation
+            const velocity = new THREE.Vector3();
+            velocity.copy(bird.position).sub(new THREE.Vector3(newX, bird.position.y, newZ));
+            
+            // Update position
+            bird.position.x = newX;
+            bird.position.z = newZ;
+            
+            // Maintain consistent height with slight variation
+            bird.position.y = circleHeight + bird.heightOffset + Math.sin(bird.angle * 2) * 0.3;
+            
+            // Rotate bird to face movement direction
+            if (velocity.length() > 0.01) {
+                bird.lookAt(bird.position.clone().add(velocity));
+            }
+        }
+
+        // Load building numbers and font
+        const fontLoader = new THREE.FontLoader();
+        fontLoader.load(
+            'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/fonts/helvetiker_regular.typeface.json',
+            (font) => {
+                console.log('Font loaded successfully:', font);
+                // Generate labels for houses after font is loaded
+                let houseIndex = 0;
+                for (let i = 0; i < gridSize; i++) {
+                    for (let j = 0; j < gridSize; j++) {
+                        const isEdge = i === 0 || i === gridSize - 1 || j === 0 || j === gridSize - 1;
+                        const isEmpty = !isEdge && emptyPositions.has(`${i},${j}`);
+                        
+                        if (!isEmpty) {
+                            const rowLetter = String.fromCharCode(65 + i); // A, B, C, etc.
+                            const labelText = rowLetter + (j + 1); // Use grid position for number
+                            const textGeometry = new THREE.TextGeometry(labelText, {
+                                font: font,
+                                size: houseWidth * 0.4,
+                                height: 0.2,
+                                curveSegments: 12,
+                                bevelEnabled: false,
+                            });
+                            // Compute bounding box for alignment
+                            textGeometry.computeBoundingBox();
+                            const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+                            const textHeight = textGeometry.boundingBox.max.y - textGeometry.boundingBox.min.y;
+                            // Center the text geometry
+                            textGeometry.translate(
+                                -textWidth / 2,
+                                -textHeight / 2,
+                                0
+                            );
+                            const textMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+                            textMesh.castShadow = true;
+                            textMesh.receiveShadow = true;
+                            // Position the text on the side of the house
+                            const house = houses[houseIndex];
+                            textMesh.position.x = house.position.x - houseWidth / 2 - 0.1;
+                            textMesh.position.y = house.position.y - houseHeight * 0.2; // Move numbers higher to be at 20% from bottom
+                            textMesh.position.z = house.position.z;
+                            textMesh.rotation.y = Math.PI / 2;
+                            textMesh.scale.x = -1;
+                            scene.add(textMesh);
+                            houseIndex++;
+                        }
+                    }
+                }
+            },
+            undefined,
+            (error) => {
+                console.error('Error loading font:', error);
+            }
+        );
+
+        // Set the camera's starting position
+        const playerHeight = 0.8;
+        camera.position.set(0, playerHeight, -45);
+        camera.rotation.y = Math.PI;
+
+        // Movement variables
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        const speed = 3.0;
+        const gravity = 0.5;
+        let canJump = false;
+        let lastTime = performance.now();
+        let deltaTime = 0;
+        let clampedDeltaTime = 0;
+        const raycaster = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, -1, 0), 0, playerHeight + 1);
+        const keys = {
+            'KeyW': false,
+            'KeyS': false,
+            'KeyA': false,
+            'KeyD': false,
+            'KeyP': false,
+            'Space': false,
+            'ShiftLeft': false
+        };
+        let noclipMode = false;
+
+        // Stuck detection variables
+        let lastPlayerPosition = new THREE.Vector3();
+        let stuckTimer = 0;
+        const stuckDuration = 0.5; // seconds player needs to be trying to move without success to be considered stuck
+        const stuckMovementThreshold = 0.01; // minimum distance player must move to not be considered stuck
+        let ignoreCollisionForFrame = false; // Flag to temporarily disable collision
+
+        // Head bobbing variables
+        let headBobTime = 0;
+        const headBobSpeed = 2.0; // Reduced from 4.0 steps per second
+        const headBobAmount = {
+            vertical: 0.05, // Vertical bobbing amount
+            horizontal: 0.005, // Reduced horizontal bobbing amount
+            roll: 0.005 // Reduced roll amount
+        };
+        let currentHeadBobOffset = new THREE.Vector3();
+        let currentHeadBobRotation = new THREE.Euler();
+
+        // Mouse controls
+        let isPointerLocked = false;
+        const mouseSensitivity = 0.003;
+        let yaw = Math.PI;
+        let pitch = 0;
+        let cameraSmoothing = 0.3;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        const maxMouseDelta = 100;
+
+        // Track which controls have been used
+        const usedControls = {
+            w: false,
+            a: false,
+            s: false,
+            d: false,
+            mouse: false
+        };
+
+        // Function to check if all controls have been used
+        function checkControlsUsed() {
+            return Object.values(usedControls).every(used => used);
+        }
+
+        // Function to hide the overlay
+        function hideControlsOverlay() {
+            const overlay = document.querySelector('.overlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                overlay.style.transition = 'opacity 1s ease-out';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        // Add noclip toggle to keydown event
+        document.addEventListener('keydown', (event) => { 
+            keys[event.code] = true;
+            // Toggle noclip mode when P is pressed
+            if (event.code === 'KeyP' && !event.repeat) {
+                noclipMode = !noclipMode;
+                // Reset velocity and position when toggling noclip
+                if (noclipMode) {
+                    velocity.y = 0;
+                    // If we're below ground level, move up to ground level
+                    if (camera.position.y < playerHeight) {
+                        camera.position.y = playerHeight;
+                    }
+                } else {
+                    // When disabling noclip, ensure we're on the ground
+                    raycaster.ray.origin.copy(camera.position);
+                    const intersections = raycaster.intersectObjects([plane]);
+                    if (intersections.length > 0) {
+                        camera.position.y = playerHeight;
+                    }
+                }
+            }
+            // Track WASD key usage
+            if (event.code === 'KeyW') usedControls.w = true;
+            if (event.code === 'KeyA') usedControls.a = true;
+            if (event.code === 'KeyS') usedControls.s = true;
+            if (event.code === 'KeyD') usedControls.d = true;
+            
+            // Check if all controls have been used
+            if (checkControlsUsed()) {
+                hideControlsOverlay();
+            }
+        });
+
+        // Add noclip controls to keyup event
+        document.addEventListener('keyup', (event) => { 
+            keys[event.code] = false;
+            // Handle space and shift for vertical movement in noclip
+            if (noclipMode && (event.code === 'Space' || event.code === 'ShiftLeft')) {
+                velocity.y = 0;
+            }
+        });
+
+        // Mouse controls
+        document.addEventListener('click', () => {
+            if (!isPointerLocked) {
+                renderer.domElement.requestPointerLock();
+                lastMouseX = 0;
+                lastMouseY = 0;
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            isPointerLocked = document.pointerLockElement === renderer.domElement;
+            if (!isPointerLocked) {
+                cameraSmoothing = 0.3;
+            }
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            if (isPointerLocked) {
+                // Track mouse movement
+                if (Math.abs(event.movementX) > 0 || Math.abs(event.movementY) > 0) {
+                    usedControls.mouse = true;
+                }
+
+                // Calculate mouse movement delta
+                let deltaX = event.movementX;
+                let deltaY = event.movementY;
+
+                // Clamp mouse movement to prevent large jumps
+                deltaX = Math.max(-maxMouseDelta, Math.min(maxMouseDelta, deltaX));
+                deltaY = Math.max(-maxMouseDelta, Math.min(maxMouseDelta, deltaY));
+
+                // Apply smoothing to mouse movement
+                const smoothedDeltaX = deltaX * cameraSmoothing;
+                const smoothedDeltaY = deltaY * cameraSmoothing;
+
+                // Update yaw and pitch with smoothed values
+                yaw -= smoothedDeltaX * mouseSensitivity;
+                pitch += smoothedDeltaY * mouseSensitivity;
+
+                // Clamp pitch to prevent camera flipping
+                pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+                // Update camera rotation with smoothing
+                camera.rotation.order = 'YXZ';
+                camera.rotation.y = yaw;
+                camera.rotation.x = -pitch; // Three.js uses negative pitch for looking up
+                // camera.rotation.z = gammaRad; // Apply roll if needed
+
+                // Store last mouse position for next frame
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+
+                // Check if all controls have been used
+                if (checkControlsUsed()) {
+                    hideControlsOverlay();
+                }
+            }
+        });
+
+        // Object pool for newspapers
+        const newspaperPool = [];
+        const maxNewspapers = 25;
+        const newspaperGeometry = new THREE.PlaneGeometry(0.5, 0.4);
+        const newspaperMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+        
+        function createNewspaper() {
+            const newspaper = new THREE.Mesh(newspaperGeometry, newspaperMaterial);
+            newspaper.visible = false;
+            newspaper.castShadow = true;
+            newspaper.receiveShadow = true;
+            scene.add(newspaper);
+            return newspaper;
+        }
+        
+        // Initialize object pool
+        for (let i = 0; i < maxNewspapers; i++) {
+            newspaperPool.push(createNewspaper());
+        }
+        
+        function spawnNewspaper(x, z) {
+            const newspaper = newspaperPool.find(n => !n.visible);
+            if (newspaper) {
+                newspaper.position.set(x, 0.05, z);
+                newspaper.rotation.x = -Math.PI / 2;
+                newspaper.targetPosition = new THREE.Vector3(x, 0.05, z);
+                newspaper.speed = 0.01 + Math.random() * 0.02;
+                newspaper.visible = true;
+            }
+        }
+        
+        function updateNewspapers() {
+            const playerPosition = camera.position;
+            let activeNewspapers = 0;
+            
+            for (const newspaper of newspaperPool) {
+                if (!newspaper.visible) continue;
+                
+                activeNewspapers++;
+                const distanceToPlayer = newspaper.position.distanceTo(playerPosition);
+                
+                if (distanceToPlayer > 20) {
+                    newspaper.visible = false;
+                    continue;
+                }
+                
+                const distanceToTarget = newspaper.position.distanceTo(newspaper.targetPosition);
+                if (distanceToTarget > 0.01) {
+                    newspaper.position.lerp(newspaper.targetPosition, newspaper.speed * deltaTime);
+                } else {
+                    const randomOffsetX = (Math.random() - 0.5) * 4;
+                    const randomOffsetZ = (Math.random() - 0.5) * 4;
+                    newspaper.targetPosition.set(
+                        newspaper.position.x + randomOffsetX,
+                        0.05,
+                        newspaper.position.z + randomOffsetZ
+                    );
+                }
+                newspaper.rotation.z += (Math.random() - 0.5) * 0.01 * deltaTime;
+            }
+            
+            // Spawn new newspapers if needed
+            while (activeNewspapers < maxNewspapers) {
+                const x = playerPosition.x + (Math.random() - 0.5) * 20;
+                const z = playerPosition.z + (Math.random() - 0.5) * 20;
+                spawnNewspaper(x, z);
+                activeNewspapers++;
+            }
+        }
+
+        // Optimized collision detection
+        function checkCollision(position, radius) {
+            // Check nearby grid cells
+            const gridX = Math.floor(position.x / gridCellSize);
+            const gridZ = Math.floor(position.z / gridCellSize);
+            
+            // Check current cell and adjacent cells
+            for (let x = -1; x <= 1; x++) {
+                for (let z = -1; z <= 1; z++) {
+                    const key = `${gridX + x},${gridZ + z}`;
+                    const nearbyHouses = spatialGrid.get(key) || [];
+                    
+                    for (const house of nearbyHouses) {
+                        const housePosition = house.position;
+                        
+                        // Special handling for walls
+                        if (house === northWall || house === southWall) {
+                            // For north/south walls, check both X and Z bounds
+                                const wallHalfLength = (gridSize * spacing + 2 * wallOffset) / 2;
+                            const isWithinXBounds = Math.abs(position.x - housePosition.x) < wallHalfLength;
+                            const isWithinZBounds = Math.abs(position.z - housePosition.z) < radius + wallThickness / 2;
+                            
+                            if (isWithinXBounds && isWithinZBounds) {
+                                    return true;
+                            }
+                        } else if (house === eastWall || house === westWall) {
+                            // For east/west walls, check both X and Z bounds
+                                const wallHalfLength = (gridSize * spacing + 2 * wallOffset) / 2;
+                            const isWithinXBounds = Math.abs(position.x - housePosition.x) < radius + wallThickness / 2;
+                            const isWithinZBounds = Math.abs(position.z - housePosition.z) < wallHalfLength;
+                            
+                            if (isWithinXBounds && isWithinZBounds) {
+                                    return true;
+                            }
+                        } else {
+                            // Rectangular collision check for houses
+                            const houseHalfWidth = houseWidth / 2;
+                            const houseHalfDepth = houseDepth / 2;
+                            
+                            // Calculate the closest point on the house rectangle to the player
+                            const closestX = Math.max(housePosition.x - houseHalfWidth, 
+                                                    Math.min(position.x, housePosition.x + houseHalfWidth));
+                            const closestZ = Math.max(housePosition.z - houseHalfDepth, 
+                                                    Math.min(position.z, housePosition.z + houseHalfDepth));
+                            
+                            // Calculate distance to closest point
+                            const distance = Math.sqrt(
+                                Math.pow(position.x - closestX, 2) +
+                                Math.pow(position.z - closestZ, 2)
+                            );
+                            
+                            if (distance < radius) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Animation loop
+        let isWindowFocused = true;
+        let lastValidTime = performance.now();
+
+        // Handle window focus
+        window.addEventListener('blur', () => {
+            isWindowFocused = false;
+            // Reset velocity when window loses focus
+            velocity.y = 0;
+        });
+
+        window.addEventListener('focus', () => {
+            isWindowFocused = true;
+            lastValidTime = performance.now();
+        });
+
+        // Camera shake variables
+        let cameraShakeIntensity = 0;
+        let cameraShakeTime = 0;
+        const maxShakeIntensity = 0.2; // Increased from 0.1 to 0.2
+        const shakeDecay = 1.5; // Reduced from 2.0 to 1.5 for longer shake duration
+
+        function applyCameraShake(intensity) {
+            cameraShakeIntensity = Math.min(maxShakeIntensity, cameraShakeIntensity + intensity);
+            cameraShakeTime = 0;
+        }
+
+        function updateCameraShake(deltaTime) {
+            if (cameraShakeIntensity > 0) {
+                cameraShakeTime += deltaTime;
+                const shakeAmount = cameraShakeIntensity * Math.exp(-shakeDecay * cameraShakeTime);
+
+                // Apply random shake to camera rotation with increased intensity
+                camera.rotation.x += (Math.random() - 0.5) * shakeAmount * 0.2;
+                camera.rotation.y += (Math.random() - 0.5) * shakeAmount * 0.2;
+                camera.rotation.z += (Math.random() - 0.5) * shakeAmount * 0.2;
+
+                // Decay shake intensity
+                cameraShakeIntensity = Math.max(0, cameraShakeIntensity - deltaTime * shakeDecay);
+            }
+        }
+
+        // Player health system
+        let playerHealth = 100;
+        const maxHealth = 100;
+        let isGameOver = false;
+        const healthBar = document.querySelector('.health-bar');
+        const gameOverScreen = document.querySelector('.game-over-screen');
+        const vignette = document.querySelector('.vignette');
+
+        function updateHealthBar() {
+            const healthPercentage = (playerHealth / maxHealth) * 100;
+            healthBar.style.width = `${healthPercentage}%`;
+            
+            // Update vignette intensity based on damage
+            const damagePercentage = 1 - (playerHealth / maxHealth);
+            const vignetteIntensity = damagePercentage * 0.5; // Max 50% opacity
+            vignette.style.background = `radial-gradient(circle at center, transparent 0%, rgba(255, 0, 0, ${vignetteIntensity}) 100%)`;
+        }
+
+        function takeDamage(amount) {
+            if (isGameOver) return;
+            
+            playerHealth = Math.max(0, playerHealth - amount);
+            updateHealthBar();
+            
+            // Apply camera shake when taking damage
+            applyCameraShake(amount / 10);
+            
+            if (playerHealth <= 0) {
+                gameOver();
+            }
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            gameOverScreen.style.display = 'flex';
+            
+            // Unlock the cursor
+            document.exitPointerLock();
+            
+            // Disable controls
+            keys['KeyW'] = false;
+            keys['KeyS'] = false;
+            keys['KeyA'] = false;
+            keys['KeyD'] = false;
+            keys['Space'] = false;
+            keys['ShiftLeft'] = false;
+            
+            // Dramatic death animation
+            const dropSpeed = 0.5;
+            const rotationSpeed = 0.5;
+            const targetPitch = -Math.PI / 2; // Look straight up
+            
+            const dropInterval = setInterval(() => {
+                if (camera.position.y > 0.1) {
+                    // Drop camera
+                    camera.position.y -= dropSpeed;
+                    
+                    // Smoothly rotate camera to look up
+                    camera.rotation.x = THREE.MathUtils.lerp(
+                        camera.rotation.x,
+                        targetPitch,
+                        rotationSpeed * deltaTime
+                    );
+                } else {
+                    clearInterval(dropInterval);
+                    // Ensure final rotation is exactly looking up
+                    camera.rotation.x = targetPitch;
+                }
+            }, 16);
+        }
+
+        // Initialize health bar
+        updateHealthBar();
+
+        // Human entity parameters
+        const humanColor = 0xB07A3A; // lighter, brownish-orange, less contrast with fog/buildings
+        const humanScale = 0.3;
+        const humanRespawnTime = 60; // seconds
+        const humanMoveSpeed = 1.0; // units per second // Reduced from 2.5
+        const humanIdleOffset = houseWidth / 2 - 1.0; // idle: further from edge
+        const humanEdgeOffset = houseWidth / 2 - 0.15; // watching: a bit closer to edge
+        const humanEntities = [];
+        // Human walking animation parameters
+        const walkSpeed = 0.6; // units per second (was 1.2)
+        const walkEdgeLength = houseWidth * 0.8; // how far along the edge the human walks
+        const walkBobSpeed = 6.0; // speed of bobbing animation
+        const walkBobHeight = 0.04; // height of bobbing (was 0.08)
+        const walkPauseTime = 0.7; // pause at edge ends (seconds)
+
+        // Helper to create a low-fidelity human mesh (torso, shoulders, head)
+        function createHumanMesh() {
+            const group = new THREE.Group();
+            // Torso
+            const torsoGeometry = new THREE.CylinderGeometry(0.25, 0.32, 1.0, 8);
+            const material = new THREE.MeshStandardMaterial({ color: humanColor, transparent: true, opacity: 1.0 });
+            const torso = new THREE.Mesh(torsoGeometry, material);
+            torso.position.y = 0.5;
+            group.add(torso);
+            // Shoulders (horizontal capsule)
+            const shoulderGeometry = new THREE.CylinderGeometry(0.18, 0.18, 0.5, 8);
+            const shoulders = new THREE.Mesh(shoulderGeometry, material);
+            shoulders.rotation.z = Math.PI / 2;
+            shoulders.position.y = 1.0;
+            group.add(shoulders);
+            // Head (sphere)
+            const headGeometry = new THREE.SphereGeometry(0.22, 10, 10);
+            const head = new THREE.Mesh(headGeometry, material);
+            head.position.y = 1.35;
+            group.add(head);
+            group.castShadow = true;
+            group.receiveShadow = true;
+            group.scale.setScalar(humanScale);
+            return group;
+        }
+
+        // Only some roofs are potential spawn points
+        const potentialHumanRoofs = [];
+        houses.forEach((house) => {
+            if (house.geometry.parameters && house.geometry.parameters.width === houseWidth) {
+                if (Math.random() < 0.4) { // 40% chance
+                    const roofY = house.position.y + houseHeight / 2 + 0.01;
+                    const center = new THREE.Vector3(house.position.x, roofY, house.position.z);
+                    potentialHumanRoofs.push({ house, center, spawned: false, human: null });
+                }
+            }
+        });
+
+        // Spawning logic: check player proximity each frame
+        function updateHumanSpawns() {
+            const playerXZ = new THREE.Vector2(camera.position.x, camera.position.z);
+            for (const roof of potentialHumanRoofs) {
+                const humanXZ = new THREE.Vector2(roof.center.x, roof.center.z);
+                const distXZ = playerXZ.distanceTo(humanXZ);
+                if (!roof.spawned && distXZ < spacing * 4) {
+                    // Spawn human
+                    const mesh = createHumanMesh();
+                    mesh.position.copy(roof.center);
+                    mesh.visible = false;
+                    scene.add(mesh);
+                    roof.human = {
+                        house: roof.house,
+                        mesh,
+                        center: roof.center,
+                        state: 'hidden',
+                        timer: 1.5,
+                        // removed: hiding/watching/transitioning properties
+                        currentLean: 0, // Still needed for walking bob lean
+                        walkProgress: Math.random(), // 0..1, randomize start
+                        walkDir: Math.random() < 0.5 ? 1 : -1,
+                        walkPause: 0,
+                        walkingEdgeDir: new THREE.Vector3() // Store the edge direction for walking
+                    };
+                    humanEntities.push(roof.human);
+                    roof.spawned = true;
+                } else if (roof.spawned && distXZ > spacing * 5) {
+                    // Despawn human if player is far away
+                    if (roof.human && roof.human.mesh) {
+                        scene.remove(roof.human.mesh);
+                    }
+                    if (roof.human) {
+                        const idx = humanEntities.indexOf(roof.human);
+                        if (idx !== -1) humanEntities.splice(idx, 1);
+                    }
+                    roof.human = null;
+                    roof.spawned = false;
+                }
+            }
+        }
+
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+
+            // Skip animation if window is not focused
+            if (!isWindowFocused) {
+                lastTime = currentTime;
+                return;
+            }
+
+            // Calculate delta time
+            deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            // Clamp deltaTime to prevent large jumps
+            clampedDeltaTime = Math.min(deltaTime, 0.1);
+
+            // Store position before attempting movement for stuck detection
+            lastPlayerPosition.copy(camera.position);
+
+            // Update snow particles
+            const positions = snowSystem.geometry.attributes.position.array;
+            for (let i = 0; i < snowCount; i++) {
+                const i3 = i * 3;
+                positions[i3] += (Math.random() - 0.5) * 0.1 * deltaTime;
+                positions[i3 + 1] -= 0.08 * deltaTime;
+                positions[i3 + 2] += (Math.random() - 0.5) * 0.1 * deltaTime;
+
+                if (positions[i3 + 1] < 0) {
+                    positions[i3] = (Math.random() - 0.5) * 200;
+                    positions[i3 + 1] = 30 + Math.random() * 10;
+                    positions[i3 + 2] = (Math.random() - 0.5) * 200;
+                }
+            }
+            snowSystem.geometry.attributes.position.needsUpdate = true;
+
+            // Player movement
+            // Check if game is over to disable movement
+            if (!isGameOver) { // <-- Add this check
+                if (isMobile) { // Use mobile controls
+                    direction.z = -moveVector.y; // Negative because moving forward is -Z
+                    direction.x = moveVector.x;
+                     if (direction.length() > 0) {
+                         direction.normalize(); // Normalize diagonal movement
+                         isMoving = true;
+                          headBobTime += headBobSpeed * clampedDeltaTime; // Use clampedDeltaTime for head bobbing
+                     } else {
+                         direction.set(0, 0, 0);
+                         isMoving = false;
+                         headBobTime = 0; // Reset head bobbing when not moving
+                     }
+
+                     // Apply lookVector for camera rotation ONLY if gyroscope is not used
+                     if (!useGyroLook) {
+                        // Apply lookVector for camera rotation
+                        const mobileLookSensitivity = 0.02; // Increased sensitivity for mobile look
+                        yaw -= lookVector.x * mobileLookSensitivity; // Use lookVector.x for horizontal rotation
+                        pitch += lookVector.y * mobileLookSensitivity; // Use lookVector.y for vertical rotation
+                        console.log('Touch Look - yaw:', yaw, 'pitch:', pitch);
+                     }
+
+                     // Clamp pitch to prevent camera flipping
+                     pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+                     // Update camera rotation
+                     camera.rotation.order = 'YXZ';
+                     camera.rotation.y = yaw;
+                     camera.rotation.x = -pitch; // Three.js uses negative pitch for looking up
+                     // camera.rotation.z = THREE.MathUtils.degToRad(gammaDelta) * gyroSensitivity; // Apply roll if needed
+
+                } else { // Use desktop controls (keyboard and mouse)
+                    direction.z = Number(keys['KeyW']) - Number(keys['KeyS']);
+                    direction.x = Number(keys['KeyD']) - Number(keys['KeyA']);
+                    if (direction.length() > 0) {
+                        direction.normalize();
+                        isMoving = true;
+                        // Update head bobbing time based on movement speed
+                        headBobTime += headBobSpeed * clampedDeltaTime; // Use clampedDeltaTime for head bobbing
+                    } else {
+                        direction.set(0, 0, 0);
+                        isMoving = false;
+                        // Reset head bobbing when not moving
+                        headBobTime = 0;
+                    }
+                     // Mouse look is handled by the mousemove event listener outside the loop
+                     // The camera.rotation.y and camera.rotation.x are updated directly there
+                }
+            } else { // <-- Add this else block
+                // If game is over, ensure direction and movement state are reset
+                direction.set(0, 0, 0);
+                isMoving = false;
+                 // Reset head bobbing as well
+                 headBobTime = 0;
+            } // <-- End of the game over check
+
+            // Calculate head bobbing offset
+            const verticalBob = isMoving ? Math.sin(headBobTime * Math.PI * 2) * headBobAmount.vertical : 0;
+            const horizontalBob = isMoving ? Math.sin(headBobTime * Math.PI * 2) * headBobAmount.horizontal : 0;
+            const rollBob = isMoving ? Math.sin(headBobTime * Math.PI * 2) * headBobAmount.roll : 0;
+
+            // Smoothly interpolate to target bobbing position
+            currentHeadBobOffset.y = THREE.MathUtils.lerp(
+                currentHeadBobOffset.y,
+                verticalBob,
+                10 * deltaTime
+            );
+            currentHeadBobOffset.x = THREE.MathUtils.lerp(
+                currentHeadBobOffset.x,
+                horizontalBob,
+                10 * deltaTime
+            );
+            currentHeadBobRotation.z = THREE.MathUtils.lerp(
+                currentHeadBobRotation.z,
+                rollBob,
+                10 * deltaTime
+            );
+
+            const moveDirection = new THREE.Vector3();
+            camera.getWorldDirection(moveDirection);
+            moveDirection.y = 0;
+            moveDirection.normalize();
+            const right = new THREE.Vector3();
+            camera.getWorldDirection(right);
+            right.cross(camera.up);
+            right.normalize();
+            const targetVelocity = new THREE.Vector3();
+
+            let currentSpeed = speed; // Use normal speed by default
+            if (noclipMode) {
+                currentSpeed *= 5; // Apply 5x multiplier in noclip mode
+            }
+
+            targetVelocity.copy(moveDirection).multiplyScalar(direction.z * currentSpeed * deltaTime);
+            targetVelocity.add(right.multiplyScalar(direction.x * currentSpeed * deltaTime));
+
+            if (noclipMode) {
+                // Noclip movement - no collision checks
+                camera.position.add(targetVelocity);
+                
+                // Vertical movement in noclip (flying)
+                if (keys['Space']) {
+                    camera.position.y += speed * deltaTime;
+                }
+                if (keys['ShiftLeft']) {
+                    camera.position.y -= speed * deltaTime;
+                }
+                
+                // No gravity in noclip
+                velocity.y = 0;
+            } else {
+                // Normal movement with collision checks
+                // Calculate the full intended movement vector based on player input and speed
+                let intendedMovement = new THREE.Vector3();
+                camera.getWorldDirection(intendedMovement);
+                intendedMovement.y = 0; // Keep movement on the horizontal plane
+                intendedMovement.normalize();
+                const right = new THREE.Vector3();
+                camera.getWorldDirection(right);
+                right.cross(camera.up);
+                right.y = 0; // Keep movement on the horizontal plane
+                right.normalize();
+
+                let currentSpeed = speed;
+                // Combine forward/backward and strafing movement
+                intendedMovement.multiplyScalar(direction.z);
+                intendedMovement.add(right.multiplyScalar(direction.x));
+
+                // Normalize combined input direction if moving diagonally, then apply speed and deltaTime
+                if (intendedMovement.lengthSq() > 0) {
+                    intendedMovement.normalize().multiplyScalar(currentSpeed * clampedDeltaTime);
+                }
+
+                // Apply movement directly if ignoring collision for this frame
+                if (ignoreCollisionForFrame) {
+                    camera.position.add(intendedMovement);
+                    ignoreCollisionForFrame = false; // Reset flag after one frame
+                } else {
+                    // Check for collision at the intended next position
+                    const testPosition = camera.position.clone().add(intendedMovement);
+                    const playerRadius = 0.6;
+
+                    if (checkCollision(testPosition, playerRadius)) {
+                        // Collision detected - try to slide
+
+                        // Attempt to move only in X direction
+                        const testPositionX = camera.position.clone().add(new THREE.Vector3(intendedMovement.x, 0, 0));
+                        const collideX = checkCollision(testPositionX, playerRadius);
+
+                        // Attempt to move only in Z direction
+                        const testPositionZ = camera.position.clone().add(new THREE.Vector3(0, 0, intendedMovement.z));
+                        const collideZ = checkCollision(testPositionZ, playerRadius);
+
+                        if (!collideX && collideZ) {
+                            // Collision in Z, but not in X - slide along X axis (move only in X)
+                            camera.position.x += intendedMovement.x;
+                        } else if (collideX && !collideZ) {
+                            // Collision in X, but not in Z - slide along Z axis (move only in Z)
+                            camera.position.z += intendedMovement.z;
+                        } else if (!collideX && !collideZ) {
+                            // No collision when testing axes separately, but collision when testing both?
+                            // This might happen with diagonal movement into a corner.
+                            // Try moving by the full intended amount if separate checks pass.
+                            // (This case should ideally not be hit often with the previous checks, but as a fallback)
+                             camera.position.add(intendedMovement);
+                        }
+                        // If collideX and collideZ are both true, the player is likely in a corner
+                        // or moving directly into a face. The current position is kept.
+                        // This prevents moving further into the obstacle, but can lead to sticking.
+                        // A more advanced solution would calculate pushback.
+                        // For now, staying put is the intended behavior in complex collisions to avoid passing through.
+
+                    } else {
+                        // No collision at intended position - move directly
+                        camera.position.add(intendedMovement);
+                    }
+                }
+
+                // Apply gravity (rest of gravity/jump logic remains the same)
+                raycaster.ray.origin.copy(camera.position);
+                const intersections = raycaster.intersectObjects([plane]);
+                if (intersections.length > 0 && intersections[0].distance < playerHeight) {
+                    canJump = true;
+                    velocity.y = 0;
+                    camera.position.y = playerHeight;
+                } else {
+                    velocity.y -= gravity * clampedDeltaTime; // Use clampedDeltaTime for gravity too
+                    canJump = false;
+                    camera.position.y += velocity.y * clampedDeltaTime; // Use clampedDeltaTime
+                }
+            }
+
+            // Apply head bobbing to camera
+            if (!noclipMode) {
+                camera.position.y = playerHeight + currentHeadBobOffset.y;
+                camera.position.x += currentHeadBobOffset.x;
+                camera.rotation.z = currentHeadBobRotation.z;
+            }
+
+            // Update newspapers with deltaTime
+            updateNewspapers();
+
+            // Update bird flock with deltaTime
+            for (const bird of birdFlock) {
+                updateBird(bird);
+            }
+
+            // Update wires
+            for (const wire of wireNetwork) {
+                wire.time += wireSwaySpeed * deltaTime;
+                
+                // Update only the positions of the points
+                const positions = wire.geometry.attributes.position;
+                for (let i = 0; i <= wireSegments; i++) {
+                    const t = i / wireSegments;
+                    const sway = Math.sin(wire.time + t * Math.PI) * wireSwayAmount;
+                    const basePos = new THREE.Vector3().lerpVectors(wire.start, wire.end, t);
+                    const sag = Math.sin(t * Math.PI) * wireSagAmount;
+                    
+                    positions.setXYZ(i, 
+                        basePos.x,
+                        basePos.y - sag + sway,
+                        basePos.z
+                    );
+                }
+                
+                positions.needsUpdate = true;
+            }
+
+            // Update audio frequencies
+            updateAudioFrequencies(deltaTime);
+
+            // Check if player is moving
+            const isMovingNow = direction.length() > 0;
+            if (isMovingNow !== isMoving) {
+                isMoving = isMovingNow;
+                if (!isMoving) {
+                    footstepGain.gain.setTargetAtTime(0, audioContext.currentTime, 0.1);
+                }
+            }
+
+            // Play footsteps when moving
+            if (isMoving && currentTime - lastFootstepTime > footstepInterval * 1000) {
+                lastFootstepTime = currentTime;
+                // Randomize filter frequency for variation
+                footstepFilter.frequency.setValueAtTime(
+                    400 + Math.random() * 200,
+                    audioContext.currentTime
+                );
+                // Fade in the footstep sound
+                footstepGain.gain.setTargetAtTime(1.2, audioContext.currentTime, 0.01); // Increased from 0.6
+                // Fade out after a short time
+                footstepGain.gain.setTargetAtTime(0, audioContext.currentTime + 0.1, 0.05);
+            }
+
+            // Update eye position and rotation
+            const eyeRadius = 30;
+            const eyeSpeed = 0.1;
+            const time = performance.now() * 0.001;
+            
+            // Calculate eye position in a circular path
+            eyeGroup.position.x = Math.cos(time * eyeSpeed) * eyeRadius;
+            eyeGroup.position.z = Math.sin(time * eyeSpeed) * eyeRadius;
+            
+            // Make eye look at player
+            eyeGroup.lookAt(camera.position);
+            
+            // Calculate minimum height to prevent clipping through roofs
+            const minHeight = houseHeight + eyeSize + 10;
+            const maxHeight = houseHeight + eyeSize + 20;
+            const verticalMovement = Math.sin(time * 0.25) * 2;
+            eyeGroup.position.y = Math.min(
+                maxHeight,
+                Math.max(minHeight, eyeHeight + verticalMovement)
+            );
+
+            // Check if eye can see player
+            eyeRayOrigin.copy(eyeGroup.position);
+            eyeRayDirection.subVectors(camera.position, eyeGroup.position).normalize();
+            eyeRaycaster.set(eyeRayOrigin, eyeRayDirection);
+            
+            const intersections = eyeRaycaster.intersectObjects(houses);
+            const distanceToPlayer = eyeGroup.position.distanceTo(camera.position);
+            
+            // Player is in sight if there are no intersections and within max distance
+            const canSeePlayer = intersections.length === 0 && distanceToPlayer <= maxSightDistance;
+            
+            // Update sight timer and state
+            if (canSeePlayer) {
+                eyeSightTimer += deltaTime;
+                if (eyeSightTimer >= angrySightTime) {
+                    eyeState = 'angry';
+                    // Start the roar when entering angry state
+                    startRoar();
+                    // Deal damage when eye is angry
+                    takeDamage(20 * deltaTime);
+                } else if (eyeSightTimer >= alertSightTime) {
+                    eyeState = 'alert';
+                    // Stop the roar when leaving angry state
+                    stopRoar();
+                }
+            } else {
+                eyeSightTimer = 0;
+                eyeState = 'normal';
+                // Stop the roar when losing sight
+                stopRoar();
+            }
+            
+            // Update pupil size and shaking based on state
+            let targetPupilScale = 1.0;
+            let shouldShake = false;
+            let currentShakeSpeed = pupilShakeSpeed;
+            
+            switch(eyeState) {
+                case 'normal':
+                    targetPupilScale = 1.0;
+                    shouldShake = false;
+                    break;
+                case 'alert':
+                    targetPupilScale = pupilDilationScale;
+                    shouldShake = false;
+                    break;
+                case 'angry':
+                    targetPupilScale = angryPupilDilationScale;
+                    shouldShake = true;
+                    currentShakeSpeed = angryPupilShakeSpeed;
+                    break;
+            }
+            
+            // Update pupil size
+            pupil.scale.x = THREE.MathUtils.lerp(pupil.scale.x, targetPupilScale, 5 * deltaTime);
+            pupil.scale.y = THREE.MathUtils.lerp(pupil.scale.y, targetPupilScale, 5 * deltaTime);
+
+            // Update pupil shaking
+            if (shouldShake) {
+                const currentTime = performance.now() * 0.001;
+                
+                // Update shake direction at regular intervals
+                if (currentTime - lastShakeTime > shakeUpdateInterval) {
+                    lastShakeTime = currentTime;
+                    // Generate new random angles for both axes
+                    const randomAngleX = (Math.random() - 0.5) * Math.PI * 0.2; // Random angle between -0.1π and 0.1π
+                    const randomAngleY = (Math.random() - 0.5) * Math.PI * 0.2; // Random angle between -0.1π and 0.1π
+                    
+                    // Apply the new random rotation
+                    pupil.rotation.x = randomAngleX;
+                    pupil.rotation.y = randomAngleY;
+                }
+            } else {
+                // Smoothly return to normal rotation
+                pupil.rotation.x = THREE.MathUtils.lerp(pupil.rotation.x, 0, 5 * deltaTime);
+                pupil.rotation.y = THREE.MathUtils.lerp(pupil.rotation.y, 0, 5 * deltaTime);
+            }
+
+            // Update roar intensity in animation loop
+            updateRoarIntensity(deltaTime);
+
+            // Update camera shake
+            updateCameraShake(deltaTime);
+
+            // Spawn/despawn humans based on proximity
+            updateHumanSpawns();
+            // Update human entities
+            for (const human of humanEntities) {
+                // State machine: hidden, movingToEdge, atEdge
+                if (human.state === 'hidden') {
+                    human.timer += deltaTime;
+                    if (human.timer > 1.5) { // short delay before appearing
+                        human.mesh.position.copy(human.center);
+                        human.mesh.visible = true;
+                        // Ensure opacity is full when becoming visible
+                        human.mesh.children.forEach(c => { if (c.material) c.material.opacity = 1.0; });
+                        human.state = 'movingToEdge';
+                        human.timer = 0; // Use timer to track movement progress
+                    }
+                } else if (human.state === 'movingToEdge') {
+                    human.mesh.visible = true;
+                    human.timer += deltaTime;
+
+                    // Calculate the target edge position (similar to atEdge state)
+                    const playerXZ = new THREE.Vector2(camera.position.x, camera.position.z);
+                    const centerXZ = new THREE.Vector2(human.center.x, human.center.z);
+                    const toPlayerXZ = playerXZ.clone().sub(centerXZ).normalize();
+                    const edgeDirs = [
+                        new THREE.Vector3(1, 0, 0), // +X
+                        new THREE.Vector3(-1, 0, 0), // -X
+                        new THREE.Vector3(0, 0, 1), // +Z
+                        new THREE.Vector3(0, 0, -1) // -Z
+                    ];
+                    let bestEdgeDir = edgeDirs[0];
+                    let bestDot = -Infinity;
+                    for (const dir of edgeDirs) {
+                        const dirXZ = new THREE.Vector2(dir.x, dir.z).normalize();
+                        const dot = toPlayerXZ.dot(dirXZ);
+                        if (dot > bestDot) {
+                            bestDot = dot;
+                            bestEdgeDir = dir;
+                        }
+                    }
+                    const currentEdgeDir = bestEdgeDir; // Use the initial best edge direction for movement
+                    const edgePos = human.center.clone().add(currentEdgeDir.clone().multiplyScalar(humanEdgeOffset));
+
+                    // Move towards the edge position over a short duration (e.g., 0.5 seconds)
+                    const moveDuration = 0.5;
+                    const progress = Math.min(1, human.timer / moveDuration);
+                    human.mesh.position.copy(human.center).lerp(edgePos, progress);
+
+                    // Transition to atEdge state after movement is complete
+                    if (progress >= 1) {
+                          human.state = 'atEdge';
+                         human.timer = 0; // Reset timer for walking
+                          // Initialize walkProgress based on the side they arrived at
+                         if (Math.abs(currentEdgeDir.x) > 0) { // If moving along Z axis
+                             human.walkProgress = currentEdgeDir.x > 0 ? (human.mesh.position.z - (edgePos.z - walkEdgeLength / 2)) / walkEdgeLength : (edgePos.z + walkEdgeLength / 2 - human.mesh.position.z) / walkEdgeLength;
+                        } else { // If moving along X axis
+                             human.walkProgress = currentEdgeDir.z > 0 ? (human.mesh.position.x - (edgePos.x - walkEdgeLength / 2)) / walkEdgeLength : (edgePos.x + walkEdgeLength / 2 - human.mesh.position.x) / walkEdgeLength;
+                        }
+                          human.walkProgress = Math.max(0, Math.min(1, human.walkProgress)); // Clamp progress between 0 and 1
+                          // Determine initial walkDir based on which end of the edge they are closer to
+                         const walkAxis = Math.abs(currentEdgeDir.x) > 0 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);
+                         const edgeStart = edgePos.clone().add(walkAxis.clone().multiplyScalar(-walkEdgeLength / 2));
+                         const distToStart = human.mesh.position.distanceTo(edgeStart);
+                         const distToEnd = human.mesh.position.distanceTo(edgeStart.clone().add(walkAxis.clone().multiplyScalar(walkEdgeLength)));
+                         human.walkDir = distToStart < distToEnd ? 1 : -1;
+                         // Store the determined walking edge direction
+                         human.walkingEdgeDir.copy(currentEdgeDir);
+                    }
+
+                } else if (human.state === 'atEdge') {
+                    human.mesh.visible = true;
+                    // Defensive: skip update if center is not valid
+                    if (!human.center || isNaN(human.center.x) || isNaN(human.center.z)) continue;
+
+                    // --- Human Behavior: Always Walk ---
+                    let targetPos = new THREE.Vector3(); // Initialize targetPos
+                    let targetLean = 0; // No lean when walking
+                    let targetLookAtPlayer = false; // Don't look at player when walking
+
+                    // Calculate walking position along the edge using the stored walkingEdgeDir
+                    const currentXZ = new THREE.Vector2(human.mesh.position.x, human.mesh.position.z);
+                    const centerXZ = new THREE.Vector2(human.center.x, human.center.z);
+                    const currentToCenterXZ = centerXZ.clone().sub(currentXZ).normalize();
+                    const edgeDirs = [
+                        new THREE.Vector3(1, 0, 0), // +X
+                        new THREE.Vector3(-1, 0, 0), // -X
+                        new THREE.Vector3(0, 0, 1), // +Z
+                        new THREE.Vector3(0, 0, -1) // -Z
+                    ];
+                    let bestEdgeDir = edgeDirs[0];
+                    let bestDot = -Infinity;
+                    for (const dir of edgeDirs) {
+                        const dirXZ = new THREE.Vector2(dir.x, dir.z).normalize();
+                        const dot = currentToCenterXZ.dot(dirXZ);
+                        if (dot > bestDot) {
+                            bestDot = dot;
+                            bestEdgeDir = dir;
+                        }
+                    }
+                    const walkingEdgeDir = bestEdgeDir; // Use the current best edge for walking
+                  
+
+                    // Update walk progress and direction
+                    if (human.walkPause > 0) {
+                        human.walkPause -= deltaTime;
+                    } else {
+                        human.walkProgress += human.walkDir * (walkSpeed / walkEdgeLength) * deltaTime;
+                        if (human.walkProgress > 1) {
+                            human.walkProgress = 1;
+                            human.walkDir = -1;
+                            human.walkPause = walkPauseTime;
+                        } else if (human.walkProgress < 0) {
+                            human.walkProgress = 0;
+                            human.walkDir = 1;
+                            human.walkPause = walkPauseTime;
+                        }
+                    }
+                    // Calculate position along the edge using edgePos and walkAxis
+                    const walkAxis = Math.abs(human.walkingEdgeDir.x) > 0 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0); // Use stored walkingEdgeDir
+                    const edgePos = human.center.clone().add(human.walkingEdgeDir.clone().multiplyScalar(humanEdgeOffset)); // Use stored walkingEdgeDir
+                    const edgeStart = edgePos.clone().add(walkAxis.clone().multiplyScalar(-walkEdgeLength / 2));
+                    const edgeEnd = edgePos.clone().add(walkAxis.clone().multiplyScalar(walkEdgeLength / 2));
+                    targetPos.copy(edgeStart.clone().lerp(edgeEnd, human.walkProgress));
+
+                    // Apply bobbing to walking position
+                    const bob = Math.sin(performance.now() * 0.001 * walkBobSpeed + human.walkProgress * Math.PI * 2) * walkBobHeight;
+                    targetPos.y += bob;
+
+                    // --- APPLY calculated targetPos, targetLean, and targetLookAtPlayer ---
+                     // Always move towards the determined target (walking position)
+                     // Use a consistent movement speed for walking
+                     human.mesh.position.lerp(targetPos, 6 * deltaTime); // Use a smoothing factor like 6
+
+                    // Lean is always 0 when walking, but smooth interpolation is still applied from any previous state
+                    human.currentLean = THREE.MathUtils.lerp(human.currentLean, targetLean, 6 * deltaTime);
+
+                    // Set rotation based on the target look at (always looking forward when walking)
+                    // Look forward along the current walkingEdgeDir
+                     const lookForwardTarget = human.mesh.position.clone().add(human.walkingEdgeDir); // Use stored walkingEdgeDir
+                    human.mesh.lookAt(lookForwardTarget);
+
+                    // Apply lean rotation (leanAxis based on the current walkingEdgeDir)
+                    const up = new THREE.Vector3(0, 1, 0);
+                    const leanAxis = new THREE.Vector3().crossVectors(human.walkingEdgeDir, up).normalize(); // Use stored walkingEdgeDir
+                    const leanQuat = new THREE.Quaternion().setFromAxisAngle(leanAxis, -human.currentLean); // Use interpolated lean
+                    human.mesh.quaternion.premultiply(leanQuat);
+
+                }
+                // Removed: movingToCenter, fading, waitingToRespawn state blocks
+            }
+
+            // Stuck detection logic
+            const attemptedMove = direction.length() > 0 || (isMobile && lookVector.length() > 0); // Check if player is trying to move
+            const actualMovement = camera.position.distanceTo(lastPlayerPosition);
+
+            if (attemptedMove && actualMovement < stuckMovementThreshold) {
+                stuckTimer += clampedDeltaTime;
+                if (stuckTimer >= stuckDuration) {
+                    console.warn('Player detected as stuck. Temporarily disabling collision.');
+                    ignoreCollisionForFrame = true; // Disable collision for the next frame
+                    stuckTimer = 0; // Reset timer
+                }
+            } else {
+                stuckTimer = 0; // Reset timer if moving or not attempting to move
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate(performance.now());
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize health bar
+        updateHealthBar();
+
+        // --- Phone Booth Creation ---
+        function createPhoneBooth() {
+            const group = new THREE.Group();
+            const material = new THREE.MeshStandardMaterial({ color: 0xFF9700, roughness: 1.0, metalness: 0.0 }); // Changed to yellow, non-reflective
+            const glassMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaff, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.0 }); // Translucent glass
+            const phonePartsMaterial = new THREE.MeshStandardMaterial({ color: 0x8a5900, roughness: 1.0, metalness: 0.0 }); // Material for phone parts (handset, dial) - darker yellow
+            const phoneBoxMaterial = new THREE.MeshStandardMaterial({ color: 0xFF9700, roughness: 1.0, metalness: 0.0 }); // Material for phone box - same as booth
+
+            // Main structure (back, sides, roof)
+            const mainStructureGeometry = new THREE.BoxGeometry(1.2, 2.5, 0.1); // Back panel
+            const backPanel = new THREE.Mesh(mainStructureGeometry, material);
+            backPanel.position.set(0, 1.25, 0); // Centered
+            group.add(backPanel);
+
+            const sidePanelGeometry = new THREE.BoxGeometry(0.1, 2.5, 1.0); // Side panels depth
+            const leftPanel = new THREE.Mesh(sidePanelGeometry, glassMaterial); // Make sides glass
+            leftPanel.position.set(-0.55, 1.25, 0.45); // Positioned to the left and forward
+            group.add(leftPanel);
+            const rightPanel = new THREE.Mesh(sidePanelGeometry, glassMaterial); // Make sides glass
+            rightPanel.position.set(0.55, 1.25, 0.45); // Positioned to the right and forward
+            group.add(rightPanel);
+
+            const roofGeometry = new THREE.BoxGeometry(1.2, 0.1, 1.0); // Roof
+            const roof = new THREE.Mesh(roofGeometry, material);
+            roof.position.set(0, 2.5 + 0.05, 0.45); // Positioned above side panels
+            group.add(roof);
+
+            // Phone box and handset
+            const phoneBoxGeometry = new THREE.BoxGeometry(0.4, 0.6, 0.15); // Phone unit
+            const phoneBox = new THREE.Mesh(phoneBoxGeometry, phoneBoxMaterial);
+            phoneBox.position.set(0, 1.5, 0.15 + 0.075); // Positioned inside the booth
+            group.add(phoneBox);
+
+            // Add a cylinder for the rotary dial
+            const dialGeometry = new THREE.CylinderGeometry(0.09, 0.09, 0.015, 32); // Scaled down radius and height by 0.5x
+            const dialMaterial = new THREE.MeshStandardMaterial({ color: 0x8a5900, roughness: 1.0, metalness: 0.0 }); // Changed to even darker yellow, non-reflective
+            const phoneDial = new THREE.Mesh(dialGeometry, dialMaterial);
+            phoneDial.rotation.x = Math.PI / 2; // Rotate to face outwards
+            phoneDial.position.set(0, 1.55, 0.15 + 0.075 + 0.075); // Position on the front of the phone box - Adjusted Z position and Y position higher
+            group.add(phoneDial);
+
+            const handsetBodyGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.3);
+            const handsetReceiverGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.05);
+            const handsetMicGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.05);
+
+            const handsetBody = new THREE.Mesh(handsetBodyGeometry, phonePartsMaterial);
+            const handsetReceiver = new THREE.Mesh(handsetReceiverGeometry, phonePartsMaterial);
+            const handsetMic = new THREE.Mesh(handsetMicGeometry, phonePartsMaterial);
+
+            handsetReceiver.position.z = -0.1; // Position receiver part
+            handsetMic.position.z = 0.1; // Position microphone part
+
+            const handsetGroup = new THREE.Group();
+            handsetGroup.add(handsetBody);
+            handsetGroup.add(handsetReceiver);
+            handsetGroup.add(handsetMic);
+
+            // Position the handset lying on the phone box
+            handsetGroup.rotation.x = Math.PI / 2; // Rotate to lay flat
+            handsetGroup.position.set(0.19, 1.65, 0.265); // Position on top of phone box, moved more to the right and aligned vertically (slightly lower again)
+            group.add(handsetGroup);
+
+            // Phone booth is open from front and bottom
+
+            // Support beam (meter high, holding the phone)
+            const supportBeamGeometry = new THREE.BoxGeometry(0.1, 1.3, 0.1); // Increased height to reach phone
+            const supportBeam = new THREE.Mesh(supportBeamGeometry, material);
+            supportBeam.position.set(0, 0.65, 0.15 + 0.05); // Adjusted position based on new height (half of height)
+            group.add(supportBeam);
+
+            // Add a light inside the phone booth
+            const boothLight = new THREE.PointLight(0xffffcc, 0.8, 3); // Soft yellow light, intensity 0.8, distance 3
+            boothLight.position.set(0, 2.0, 0.45); // Position the light slightly lower and further forward
+            group.add(boothLight);
+
+            // Add shadows
+            group.traverse(function(object) {
+                if (object.isMesh) {
+                    object.castShadow = true;
+                    object.receiveShadow = true;
+                }
+            });
+
+            return group;
+        }
+
+        // --- Game Setup --- (after environment is created)
+        // Create and position the phone booth
+        // const phoneBooth = createPhoneBooth(); // We will now create multiple phone booths
+
+        // Scale the phone booth down by half
+        // phoneBooth.scale.setScalar(0.5); // Scaling will be applied when creating each booth
+
+        // Variables used in both placement scenarios
+        const playerSpawnPosition = new THREE.Vector3(0, playerHeight, -45);
+        const cityCenterXZ = new THREE.Vector2(0, 0);
+
+        // Store phone booth data
+        const phoneBooths = [];
+        const numPhoneBooths = 6;
+        const placedSidewalks = new Set(); // Keep track of sidewalks where a booth is placed
+        const houseLabelToMesh = new Map(); // Map house labels to their mesh objects
+
+        // Populate the houseLabelToMesh map
+        let houseIndexForMapping = 0;
+        for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+                const isEdge = i === 0 || i === gridSize - 1 || j === 0 || j === gridSize - 1;
+                const isEmpty = !isEdge && emptyPositions.has(`${i},${j}`);
+                
+                if (!isEmpty) {
+                    const rowLetter = String.fromCharCode(65 + i);
+                    const label = rowLetter + (j + 1);
+                    houseLabelToMesh.set(label, houses[houseIndexForMapping]);
+                    houseIndexForMapping++;
+                }
+            }
+        }
+
+        // Find potential outer sidewalk locations and place phone booths
+        const outerSidewalks = [];
+        scene.traverse(function(object) {
+            if (object.isMesh && object.geometry.type === 'BoxGeometry') { // Assuming sidewalks are BoxGeometry
+                 const isSidewalk = object.geometry.parameters.width === houseWidth * 1.4 &&
+                                    object.geometry.parameters.height === 0.2 &&
+                                    object.geometry.parameters.depth === houseDepth * 1.4;
+
+                 if (isSidewalk) {
+                    // Check if this sidewalk is on the outer edge of the grid
+                    const gridX = Math.round((object.position.x + (gridSize * spacing / 2)) / spacing);
+                    const gridZ = Math.round((object.position.z + (gridSize * spacing / 2)) / spacing);
+                    const isOuter = gridX === 0 || gridX === gridSize - 1 || gridZ === 0 || gridZ === gridSize - 1;
+
+                    if (isOuter) {
+                       outerSidewalks.push(object);
+                    }
+                 }
+            }
+        });
+
+        // Randomly select sidewalks and place phone booths
+        while (phoneBooths.length < numPhoneBooths && outerSidewalks.length > 0) {
+            const randomIndex = Math.floor(Math.random() * outerSidewalks.length);
+            const selectedSidewalk = outerSidewalks.splice(randomIndex, 1)[0]; // Remove from list
+
+            const sidewalkPos = selectedSidewalk.position;
+
+            // Determine which house this sidewalk is associated with
+            const gridX = Math.round((selectedSidewalk.position.x + (gridSize * spacing / 2)) / spacing);
+            const gridZ = Math.round((selectedSidewalk.position.z + (gridSize * spacing / 2)) / spacing);
+            const associatedHouseLabel = String.fromCharCode(65 + gridX) + (gridZ + 1);
+            const associatedHouseMesh = houseLabelToMesh.get(associatedHouseLabel);
+
+            // Determine which edge direction is closest to facing away from the center
+            const sidewalkToCenter = cityCenterXZ.clone().sub(new THREE.Vector2(sidewalkPos.x, sidewalkPos.z)).normalize();
+            const edgeDirs = [
+                new THREE.Vector3(1, 0, 0), // +X
+                new THREE.Vector3(-1, 0, 0), // -X
+                new THREE.Vector3(0, 0, 1), // +Z
+                new THREE.Vector3(0, 0, -1) // -Z
+            ];
+            let bestOutwardEdgeDir = edgeDirs[0];
+            let bestDot = -Infinity;
+            for (const dir of edgeDirs) {
+                const dot = sidewalkToCenter.dot(new THREE.Vector2(dir.x, dir.z).normalize());
+                if (dot > bestDot) {
+                    bestDot = dot;
+                    bestOutwardEdgeDir = dir; // This is the direction facing outwards from the center
+                }
+            }
+
+            // Calculate a potential position on the sidewalk, offset outwards from the center
+            // Use an offset large enough to be on the sidewalk and away from the adjacent house
+            const sidewalkOffsetAmount = 2.5; // Increased fixed offset from sidewalk center (adjust as needed)
+            const potentialPhoneBoothPosition = new THREE.Vector3(
+                sidewalkPos.x + bestOutwardEdgeDir.x * sidewalkOffsetAmount,
+                0.2, // Sit on sidewalk level
+                sidewalkPos.z + bestOutwardEdgeDir.z * sidewalkOffsetAmount
+            );
+
+            // Create the phone booth mesh
+            const phoneBoothMesh = createPhoneBooth();
+            phoneBoothMesh.scale.setScalar(0.5); // Scale down
+            phoneBoothMesh.position.copy(potentialPhoneBoothPosition);
+
+            // Set rotation to face outwards
+            const lookAtTarget = phoneBoothMesh.position.clone().add(new THREE.Vector3(bestOutwardEdgeDir.x, 0, bestOutwardEdgeDir.z));
+            phoneBoothMesh.lookAt(lookAtTarget);
+
+            // Simple check: See if the potential position is too close to any house (reuse existing check)
+            let isTooCloseToHouse = false;
+            const houseHalfWidth = houseWidth / 2;
+            const houseHalfDepth = houseDepth / 2;
+
+            for (const house of houses) {
+                // Exclude the wall meshes from this check as they are not houses in the grid
+                if (house === northWall || house === southWall || house === eastWall || house === westWall) continue;
+
+                const isInsideHouseBounds = Math.abs(phoneBoothMesh.position.x - house.position.x) < houseHalfWidth &&
+                                            Math.abs(phoneBoothMesh.position.z - house.position.z) < houseHalfDepth &&
+                                            phoneBoothMesh.position.y > house.position.y - houseHeight / 2 &&
+                                            phoneBoothMesh.position.y < house.position.y + houseHeight / 2;
+
+                if (isInsideHouseBounds) {
+                    isTooCloseToHouse = true;
+                    break;
+                }
+            }
+
+            // Add to scene and store if placement is valid
+            if (!isTooCloseToHouse) {
+                scene.add(phoneBoothMesh);
+                // Store booth data including the associated house label
+                phoneBooths.push({
+                    mesh: phoneBoothMesh,
+                    associatedHouseLabel: associatedHouseLabel,
+                    visited: false,
+                    messageText: '', // Will be assigned later
+                    nextHouseLabel: null, // Will be assigned later
+                    isAvailable: false, // Initially not available
+                    sequenceOrder: -1, // Will be assigned later
+                    boothLight: phoneBoothMesh.children.find(c => c.isPointLight) // Store reference to the light
+                });
+                 // Initially turn off the light
+                 const light = phoneBoothMesh.children.find(c => c.isPointLight);
+                 if (light) light.intensity = 0;
+
+                console.log('Placed Phone Booth', phoneBooths.length, 'at', phoneBoothMesh.position, 'facing outwards', 'associated with', associatedHouseLabel);
+            } else {
+                console.warn('Skipping placement for phone booth due to overlap with house.');
+                // If placement failed, add the sidewalk back to the list to potentially try again or just skip
+                // For now, we'll just skip and try to find another spot.
+            }
+        }
+
+        // Fallback if not enough phone booths were placed (e.g., due to lack of outer sidewalks or overlap)
+        while(phoneBooths.length < numPhoneBooths) {
+            console.warn('Could not place enough phone booths on outer sidewalks. Placing additional at default positions.');
+            const phoneBoothMesh = createPhoneBooth();
+            phoneBoothMesh.scale.setScalar(0.5);
+            // Place at a default position slightly offset from the player spawn
+            const defaultPosOffset = phoneBooths.length * 3; // Offset default positions
+            phoneBoothMesh.position.set(
+                 playerSpawnPosition.x + defaultPosOffset,
+                 0.2,
+                 playerSpawnPosition.z + 5
+             );
+            phoneBoothMesh.rotation.y = Math.PI; // Face same direction as initial player view
+
+            scene.add(phoneBoothMesh);
+            // Store booth data (will add message/sequence data later)
+            // For default placed booths, associate with a dummy label or find closest house later if needed
+             // For now, just store the mesh and add placeholders for sequence data
+            phoneBooths.push({
+                mesh: phoneBoothMesh,
+                associatedHouseLabel: 'DEFAULT' + phoneBooths.length, // Use a dummy label
+                visited: false,
+                messageText: '', // Will be assigned later
+                nextHouseLabel: null, // Will be assigned later
+                isAvailable: false, // Initially not available
+                sequenceOrder: -1, // Will be assigned later
+                boothLight: phoneBoothMesh.children.find(c => c.isPointLight) // Store reference to the light
+            });
+             // Initially turn off the light
+             const light = phoneBoothMesh.children.find(c => c.isPointLight);
+             if (light) light.intensity = 0;
+
+             console.log('Placed Phone Booth', phoneBooths.length, 'at default position', phoneBoothMesh.position);
+        }
+
+        console.log('Total phone booths placed:', phoneBooths.length);
+
+        // --- Game Logic Setup (after phone booths are placed) ---
+
+        // 1. Get the labels of the houses associated with the placed phone booths
+        const placedHouseLabels = phoneBooths.map(booth => booth.associatedHouseLabel).filter(label => label !== 'DEFAULT'); // Exclude dummy labels for default placed booths for now
+        console.log('Houses with placed phone booths:', placedHouseLabels);
+
+        // If any default booths were placed, try to find their closest house label
+        phoneBooths.forEach(booth => {
+            if (booth.associatedHouseLabel.startsWith('DEFAULT')) {
+                let closestHouseLabel = null;
+                let minDist = Infinity;
+
+                // Iterate through all houses to find the closest one
+                houseLabelToMesh.forEach((houseMesh, label) => {
+                    const dist = booth.mesh.position.distanceTo(houseMesh.position);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestHouseLabel = label;
+                    }
+                });
+                booth.associatedHouseLabel = closestHouseLabel; // Assign the closest house label
+                placedHouseLabels.push(closestHouseLabel); // Add to the list of labels used
+                console.log('Default booth associated with closest house:', closestHouseLabel);
+            }
+        });
+
+
+        // 2. Create a randomized sequence of these house labels
+        const sequenceHouseLabels = [...placedHouseLabels]; // Copy the array
+        // Shuffle the array using Fisher-Yates algorithm
+        for (let i = sequenceHouseLabels.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [sequenceHouseLabels[i], sequenceHouseLabels[j]] = [sequenceHouseLabels[j], sequenceHouseLabels[i]];
+        }
+        console.log('Randomized phone booth sequence (house labels):', sequenceHouseLabels);
+
+        // 3. Assign sequence information, messages, and next house labels to the phoneBooth objects
+        for (let i = 0; i < phoneBooths.length; i++) {
+            const currentHouseLabel = sequenceHouseLabels[i];
+            const nextHouseLabel = (i < phoneBooths.length - 1) ? sequenceHouseLabels[i + 1] : null;
+            const messageText = nextHouseLabel ? nextHouseLabel : '';
+
+            // Find the phone booth associated with the current house label
+            const boothInSequence = phoneBooths.find(booth => booth.associatedHouseLabel === currentHouseLabel);
+
+            if (boothInSequence) {
+                boothInSequence.sequenceOrder = i;
+                boothInSequence.messageText = messageText;
+                boothInSequence.nextHouseLabel = nextHouseLabel;
+                // --- Your Custom Message Logic Goes Here --- //
+                // Replace the original messageText assignment with your custom logic
+                if (i === 0) {
+                    boothInSequence.messageText = `Похоже опять мы остались без лета. Восстанови связь в этом городе начиная с узла ${nextHouseLabel}.`;
+                } else if (i === 1) {
+                    boothInSequence.messageText = `Отлично! Но надо спешить. Птицы уже летят на юг. Иди к ${nextHouseLabel}.`;
+                } else if (i === 2) {
+                    boothInSequence.messageText = `Когда-нибудь солнце тебе улыбнётся. Но сейчас тебе нужно бежать! Сюда ${nextHouseLabel}, now!`;
+                } else if (i === 3) {
+                    boothInSequence.messageText = `У тебя почти получилось восстановить связь в городе! Увидимся у ${nextHouseLabel}.`;
+                } else if (i === 4) {
+                    boothInSequence.messageText = `Не пропускай повороты! От тебя зависит судьба города. Нам с тобою пора к пункту ${nextHouseLabel}...`;
+                } else if (i === 5) { // This is the last booth (sequenceOrder 5, assuming numPhoneBooths is 6)
+                    boothInSequence.messageText = `Связь восстановлена!`;
+                }
+                // Add more else if blocks here if you change numPhoneBooths
+                // ----------------------------------------- //
+
+                boothInSequence.nextHouseLabel = nextHouseLabel;
+                // The first booth in the sequence is available initially
+                if (i === 0) {
+                    boothInSequence.isAvailable = true;
+                    const light = boothInSequence.boothLight;
+                    if (light) light.intensity = 0.8; // Turn on light for the first booth
+                }
+                // Note: isAvailable and light logic remains inside the i === 0 block
+
+                console.log(`Booth for ${currentHouseLabel}: Sequence ${i}, Next: ${nextHouseLabel}`);
+            }
+        }
+
+        // 4. Reposition the first phone booth in the sequence to be near the player spawn
+        const firstBoothLabel = sequenceHouseLabels[0];
+        const firstPhoneBooth = phoneBooths.find(booth => booth.associatedHouseLabel === firstBoothLabel);
+
+        if (firstPhoneBooth) {
+            const playerSpawnPosition = new THREE.Vector3(0, playerHeight, -45); // Get player spawn position
+            // Position the first booth slightly in front and to the side of the player spawn
+            firstPhoneBooth.mesh.position.set(playerSpawnPosition.x + 2, 0.2, playerSpawnPosition.z + 2);
+            // Make it face towards the player spawn
+            firstPhoneBooth.mesh.lookAt(new THREE.Vector3(playerSpawnPosition.x, firstPhoneBooth.mesh.position.y, playerSpawnPosition.z));
+            console.log('Repositioned first phone booth (', firstBoothLabel, ') to:', firstPhoneBooth.mesh.position);
+        } else {
+            console.warn('Could not find the first phone booth in the sequence to reposition.');
+        }
+
+        // Game state variables for the phone booth quest
+        let currentSequenceStep = 0; // Starts at 0 for the first booth in the sequence
+        let isInteractingWithPhone = false;
+        let phoneInteractionTimer = 0;
+        const phoneInteractionDuration = 2.0; // Seconds to hold 'E'
+        let currentMessageIndex = 0; // To track typing progress
+        let messageDisplayTimer = 0; // To control typing speed
+        const messageTypingSpeed = 0.03; // Seconds per character
+        let isDisplayingMessage = false;
+        let eKeyReleasedAfterMessage = false; // Flag to track if E has been released after message appears
+
+        // Get UI elements
+        const progressBarContainer = document.getElementById('progressBarContainer');
+        const progressBar = document.getElementById('progressBar');
+        const messageDisplay = document.getElementById('messageDisplay');
+        const messageTextElement = document.getElementById('messageText');
+        const closePromptElement = document.getElementById('closePrompt'); // Get the new close prompt element
+        const interactPromptElement = document.getElementById('interactPrompt'); // Get the new interact prompt element
+        const wakeUpMessageElement = document.getElementById('wakeUpMessage'); // Get the new wake up message element
+
+        // Audio setup for beeps and boops
+        let beepBoopContext = new (window.AudioContext || window.webkitAudioContext)();
+        let beepBoopGain = beepBoopContext.createGain();
+        beepBoopGain.gain.value = 0.1; // Adjust volume
+        beepBoopGain.connect(beepBoopContext.destination);
+
+        function playBeepBoop() {
+            if (!beepBoopContext || beepBoopContext.state === 'suspended') return;
+
+            const oscillator = beepBoopContext.createOscillator();
+            const gainNode = beepBoopContext.createGain();
+
+            oscillator.type = 'square'; // Square wave for a beepy sound
+            oscillator.frequency.setValueAtTime(Math.random() * 400 + 400, beepBoopContext.currentTime); // Random frequency between 400 and 800 Hz
+            
+            // Simple volume envelope (attack, decay)
+            gainNode.gain.setValueAtTime(0, beepBoopContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.05, beepBoopContext.currentTime + 0.01); // Attack
+            gainNode.gain.exponentialApproachValueAtTime(0.001, beepBoopContext.currentTime + 0.1, 0.05); // Decay
+            gainNode.gain.linearRampToValueAtTime(0, beepBoopContext.currentTime + 0.2, 0.05); // Release
+
+            oscillator.connect(gainNode);
+            gainNode.connect(beepBoopGain);
+
+            oscillator.start();
+            oscillator.stop(beepBoopContext.currentTime + 0.2); // Stop after a short duration
+        }
+
+        // Game ending elements and audio
+        const gameOverOverlay = document.createElement('div');
+        gameOverOverlay.style.position = 'fixed';
+        gameOverOverlay.style.top = 0;
+        gameOverOverlay.style.left = 0;
+        gameOverOverlay.style.width = '100%';
+        gameOverOverlay.style.height = '100%';
+        gameOverOverlay.style.backgroundColor = 'white'; // Fade to white
+        gameOverOverlay.style.opacity = 0;
+        gameOverOverlay.style.zIndex = 2000;
+        gameOverOverlay.style.pointerEvents = 'none'; // Allow interaction beneath
+        gameOverOverlay.style.transition = 'opacity 3s ease-in-out'; // Fade duration
+        document.body.appendChild(gameOverOverlay);
+
+        let alarmContext = new (window.AudioContext || window.webkitAudioContext)();
+        let alarmSource = null;
+
+        function playAlarmSound() {
+            if (!alarmContext || alarmContext.state === 'suspended') return;
+
+            const beepDuration = 0.1; // Duration of each beep in seconds
+            const beepFrequency = 880; // Frequency of the beep (A5)
+            const shortPause = 0.1; // Pause between beeps
+            const longPause = 0.5; // Pause between groups of 4 beeps
+            const numBeepsPerGroup = 4;
+            const numGroups = 4;
+            let currentTime = alarmContext.currentTime;
+
+            for (let g = 0; g < numGroups; g++) {
+                for (let b = 0; b < numBeepsPerGroup; b++) {
+                    // Create oscillator for the beep
+                    const oscillator = alarmContext.createOscillator();
+                    const gainNode = alarmContext.createGain();
+
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(beepFrequency, currentTime);
+
+                    // Simple volume envelope
+                    gainNode.gain.setValueAtTime(0, currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.1, currentTime + 0.01); // Attack
+                    gainNode.gain.exponentialApproachValueAtTime(0.001, currentTime + beepDuration - 0.01, 0.01); // Decay
+                    gainNode.gain.linearRampToValueAtTime(0, currentTime + beepDuration, 0.01); // Release
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(alarmContext.destination);
+
+                    oscillator.start(currentTime);
+                    oscillator.stop(currentTime + beepDuration);
+
+                    currentTime += beepDuration + shortPause; // Move time forward by beep duration and short pause
+                }
+                currentTime += longPause - shortPause; // Add the long pause duration (subtracting the last short pause)
+            }
+        }
+
+        function stopAlarmSound() {
+            // The new playAlarmSound function stops automatically after the sequence
+            // This function might not be needed anymore for the new alarm sound, but keep it for safety
+             if (alarmSource) {
+                 alarmSource.stop();
+                 alarmSource = null;
+             }
+        }
+
+        function triggerGameEnding() {
+            console.log('Triggering game ending!');
+            // Stop all ongoing sounds
+             if (audioContext) audioContext.suspend();
+             if (beepBoopContext) beepBoopContext.suspend();
+             stopAlarmSound(); // Ensure the alarm stops if it's still playing
+
+             // Fade to white
+             gameOverOverlay.style.opacity = 1; // Start the fade
+
+             // After fade completes (3 seconds), display the final message
+             setTimeout(() => {
+                 wakeUpMessageElement.style.display = 'block';
++                 // Transition to full game over state after showing 'WAKE UP'
++                 gameOver();
+             }, 3000); // Match the CSS transition duration
+        }
+
+        // --- Phone Booth Ringtone Setup ---
+        const ringtoneContext = audioContext; // Use the main audio context
+        let ringtoneSource = null;
+        let ringtoneGain = null;
+        let ringtoneOsc1 = null;
+        let ringtoneOsc2 = null;
+        const maxRingtoneDistance = 5; // Maximum distance in units to hear the ringtone (reduced from 25)
+
+        function startRingtone() {
+            if (ringtoneSource) stopRingtone(); // Stop if already playing
+
+            ringtoneGain = ringtoneContext.createGain();
+            ringtoneGain.gain.value = 0; // Start with zero volume, will be controlled by distance
+
+            ringtoneOsc1 = ringtoneContext.createOscillator();
+            ringtoneOsc1.type = 'sine';
+            ringtoneOsc1.frequency.value = 440; // A4
+
+            ringtoneOsc2 = ringtoneContext.createOscillator();
+            ringtoneOsc2.type = 'sine';
+            ringtoneOsc2.frequency.value = 480; // B4
+
+            // Connect oscillators to ringtone gain
+            ringtoneOsc1.connect(ringtoneGain);
+            ringtoneOsc2.connect(ringtoneGain);
+
+            // Connect ringtone gain to master gain
+            ringtoneGain.connect(masterGain);
+
+            // Start oscillators
+            const now = ringtoneContext.currentTime;
+            ringtoneOsc1.start(now);
+            ringtoneOsc2.start(now);
+
+            // Simplified ringtone source object
+            ringtoneSource = { osc1: ringtoneOsc1, osc2: ringtoneOsc2, gain: ringtoneGain };
+        }
+
+        function stopRingtone() {
+            if (ringtoneSource) {
+                // Stop oscillators smoothly
+                const now = ringtoneContext.currentTime;
+                ringtoneSource.osc1.stop(now + 0.1);
+                ringtoneSource.osc2.stop(now + 0.1);
+
+                // Disconnect nodes
+                ringtoneSource.osc1.disconnect();
+                ringtoneSource.osc2.disconnect();
+                ringtoneSource.gain.disconnect();
+
+                ringtoneSource = null;
+                 // Clear any pending timeouts for pulsing
+                 // (This is a simplification; a more robust approach would track and clear specific timeouts)
+                 // For this example, relying on garbage collection and checking ringtoneSource is sufficient
+            }
+        }
+
+        // Modify animate function to include phone booth interaction logic
+        const originalAnimate = animate;
+        animate = function (currentTime) {
+            originalAnimate(currentTime);
+
+            // Skip interaction logic if game is over
+            if (isGameOver) {
+                // Still update message typing if active
+                if (isDisplayingMessage) {
+                     // When game is over and message is displaying, allow closing with E
+                     if (keys['KeyE'] && eKeyReleasedAfterMessage) { // Add flag check here too
+                         messageDisplay.style.display = 'none';
+                         isDisplayingMessage = false;
+                     }
+                }
+                return; // Exit early if game over
+            }
+
+            // Handle message display (now instant and closable by E)
+            if (isDisplayingMessage) {
+                 // Display the full message instantly
+                 messageTextElement.textContent = messageTextElement.dataset.fullText;
+                 closePromptElement.textContent = 'Нажми E чтобы закрыть'; // Set the close prompt text
+                 closePromptElement.style.display = 'block'; // Show the close prompt
+ 
+                  // Hide the interact prompt if it's visible while a message is displaying
+                  interactPromptElement.style.display = 'none';
+ 
+             } else {
+                   // If message is NOT displaying, hide the close prompt
+                   closePromptElement.style.display = 'none';
+              }
+
+
+            const playerPosition = camera.position;
+            const playerDirection = camera.getWorldDirection(new THREE.Vector3());
+
+            let interactingWithCurrentBooth = false;
+            let nearAndLookingAtBooth = false; // Flag to track if player is near and looking at an available booth
+
+            // Update ringtone based on active booth and player position
+            let activeBoothFound = false;
+            for (const booth of phoneBooths) {
+                if (booth.isAvailable && booth.sequenceOrder === currentSequenceStep) {
+                    activeBoothFound = true;
+                    const boothPosition = booth.mesh.position;
+                    const distanceToBooth = playerPosition.distanceTo(boothPosition);
+
+                    // Control ringtone volume based on distance
+                    if (distanceToBooth < maxRingtoneDistance) {
+                        if (!ringtoneSource) {
+                             // Start ringtone if within distance and not playing
+                             // Ensure audio context is running before starting
+                             if (audioContext.state === 'suspended') {
+                                audioContext.resume().then(startRingtone);
+                             } else {
+                                startRingtone();
+                             }
+                        }
+                        if (ringtoneGain) {
+                            // Map distance to volume (inverse relationship, 0 volume at max distance)
+                            const volume = (1.0 - (distanceToBooth / maxRingtoneDistance)) * 0.5; // Reduced max volume by x2
+                            ringtoneGain.gain.setValueAtTime(volume, audioContext.currentTime); // Set volume directly
+                        }
+
+                    } else {
+                        // Stop ringtone if outside max distance
+                        stopRingtone();
+                    }
+
+                    // Check for interaction with the active booth
+                    const phoneBox = booth.mesh.children.find(child =>
+                        child.geometry && child.geometry.parameters &&
+                        child.geometry.parameters.width === 0.4 &&
+                        child.geometry.parameters.height === 0.6
+                    ); // Assuming the phone box has these dimensions
+
+                    if (distanceToBooth < 3 && phoneBox) { // Check proximity (e.g., 3 units) and if phone box exists
+                        // Check if player is looking at the phone box
+                        const phoneBoxWorldPosition = new THREE.Vector3();
+                        phoneBox.getWorldPosition(phoneBoxWorldPosition);
+
+                        const toPhoneBox = new THREE.Vector3().subVectors(phoneBoxWorldPosition, playerPosition).normalize();
+                        const lookDot = playerDirection.dot(toPhoneBox);
+
+                        if (lookDot > 0.8) { // Check if looking roughly towards the phone box (adjust dot threshold as needed)
+                            nearAndLookingAtBooth = true; // Player is near and looking
+                            // Player is near and looking at the phone
+                            // Check if 'E' key is held
+                            if (keys['KeyE']) {
+                                if (!isInteractingWithPhone) {
+                                    isInteractingWithPhone = true;
+                                    phoneInteractionTimer = 0;
+                                    progressBarContainer.style.display = 'block';
+                                     interactPromptElement.style.display = 'none'; // Hide interact prompt when starting interaction
+                                    // Ensure audio context is running before starting timer
+                                     if (beepBoopContext && beepBoopContext.state === 'suspended') {
+                                        beepBoopContext.resume();
+                                     }
+                                }
+                                phoneInteractionTimer += clampedDeltaTime; // Use clampedDeltaTime
+                                const progress = Math.min(1, phoneInteractionTimer / phoneInteractionDuration);
+                                progressBar.style.width = `${progress * 100}%`;
+
+                                if (phoneInteractionTimer >= phoneInteractionDuration) {
+                                    // Interaction complete!
+                                    isInteractingWithPhone = false;
+                                    progressBarContainer.style.display = 'none';
+                                    booth.visited = true;
+                                    booth.isAvailable = false; // This booth is no longer available
+                                     if (booth.boothLight) booth.boothLight.intensity = 0; // Turn off the light
+
+                                    // Check if this was the last booth in the sequence
+                                    const isLastBooth = currentSequenceStep === numPhoneBooths - 1;
+
+                                    currentSequenceStep++;
+                                    console.log(`Completed step ${currentSequenceStep}. Looking for booth for ${booth.nextHouseLabel}`);
+
+                                    // Find and enable the next booth in the sequence (if not the last one)
+                                    if (!isLastBooth && booth.nextHouseLabel) {
+                                        const nextBooth = phoneBooths.find(b => b.associatedHouseLabel === booth.nextHouseLabel);
+                                        if (nextBooth) {
+                                            nextBooth.isAvailable = true;
+                                             if (nextBooth.boothLight) nextBooth.boothLight.intensity = 0.8; // Turn on the light
+                                            console.log(`Next booth (${booth.nextHouseLabel}) is now available.`);
+                                        } else {
+                                             console.warn(`Could not find next booth with label: ${booth.nextHouseLabel}`);
+                                         }
+                                    }
+
+                                    // Display message
+                                    isDisplayingMessage = true;
+                                    messageDisplay.style.display = 'block';
+                                    messageTextElement.textContent = ''; // Clear previous message
+                                    messageTextElement.dataset.fullText = booth.messageText; // Store full text
+                                    console.log('Message text set to:', messageTextElement.dataset.fullText);
+                                    currentMessageIndex = 0; // Reset for potential future typing effects (or just clear)
+                                    messageDisplayTimer = 0; // Reset typing timer (or just clear)
+
+                                    // Reset E key state for message closing
+                                    eKeyReleasedAfterMessage = false;
+
+                                    // Trigger game ending immediately if this was the last booth after displaying the message
+                                    if (isLastBooth) {
+                                         console.log('Last booth message received. Triggering game ending in 3 seconds.');
+                                         // Start the alarm sound immediately when the last message appears
+                                         if (alarmContext && alarmContext.state === 'suspended') {
+                                             alarmContext.resume().then(playAlarmSound);
+                                          } else {
+                                               playAlarmSound();
+                                          }
+                                         // The fade to white and final message display is now handled by triggerGameEnding after a delay from *it* being called
+                                         // Call triggerGameEnding here to start the fade timer
+                                         triggerGameEnding();
+                                       }
+                                }
+                                interactingWithCurrentBooth = true; // Indicate successful interaction check
+                                break; // Only interact with one booth at a time
+                            } else if (isInteractingWithPhone && phoneInteractionTimer > 0) {
+                                // If 'E' is released before timer complete, cancel interaction
+                                isInteractingWithPhone = false;
+                                phoneInteractionTimer = 0;
+                                progressBarContainer.style.display = 'none';
+                                 // Optionally show interact prompt again if player is still near and looking
+                                 if (nearAndLookingAtBooth) interactPromptElement.style.display = 'block';
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Update visibility of 'Press E to answer' prompt
+            if (nearAndLookingAtBooth && !isInteractingWithPhone && !isDisplayingMessage) {
+                interactPromptElement.style.display = 'block';
+            } else {
+                interactPromptElement.style.display = 'none';
+            }
+
+
+            // If not interacting with any phone booth, reset interaction state
+            if (!interactingWithCurrentBooth && isInteractingWithPhone) {
+                 isInteractingWithPhone = false;
+                phoneInteractionTimer = 0;
+                progressBarContainer.style.display = 'none';
+                 interactPromptElement.style.display = 'none'; // Hide if interaction is cancelled by moving away
+            }
+
+             // Stop ringtone if no active booth is found (or current step is beyond last booth)
+             if (!activeBoothFound && ringtoneSource) {
+                 stopRingtone();
+             }
+        };
+
+        // Add event listener for 'E' key for interaction and closing message
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'KeyE') {
+                 keys['KeyE'] = true; // Track the key state
+
+                 // If a message is currently displayed, pressing E closes it
+                 // Only close message if displayed and E has been released and pressed again
+                 if (isDisplayingMessage && eKeyReleasedAfterMessage) {
+                        messageDisplay.style.display = 'none';
+                        isDisplayingMessage = false;
+
+                        // Check for game end AFTER closing the message if it was the last booth message
+                        // Game ending is now triggered directly after interaction with the last booth
+                        // No need to re-trigger here when message is closed
+                           // triggerGameEnding();
+                     }
+                }
+               // ... rest of existing keydown logic
+                // Add check for 'E' key to prevent default browser actions if needed
+                if (event.code === 'KeyE' && (isInteractingWithPhone || isDisplayingMessage)) {
+                    event.preventDefault(); // Prevent default only if interacting or message is displayed
+                }
+        });
+
+         // Add event listener for 'E' keyup to cancel interaction
+        document.addEventListener('keyup', (event) => {
+            if (event.code === 'KeyE') {
+                 keys['KeyE'] = false; // Track the key state
+             // If a message is currently displayed, mark E as released
+                if (isDisplayingMessage) {
+                    eKeyReleasedAfterMessage = true;
+                }
+            }
+            // ... rest of existing keyup logic
+        });
+
+        // Add touch event listeners for the virtual Interact ('E') button
+        const interactButton = document.getElementById('interactButton');
+        if (interactButton) {
+            interactButton.addEventListener('touchstart', (e) => {
+                // Only prevent default if not interacting with the phone or displaying a message
+                // This allows scrolling if the button is touched accidentally while not active
+                if (isInteractingWithPhone || isDisplayingMessage) {
+                     e.preventDefault(); // Prevent default touch behavior
+                }
+                keys['KeyE'] = true; // Simulate E key press
+            });
+
+            interactButton.addEventListener('touchend', (e) => {
+                // Only prevent default if interaction was active when touch started
+                if (isInteractingWithPhone || isDisplayingMessage) {
+                     e.preventDefault(); // Prevent default touch behavior
+                }
+                keys['KeyE'] = false; // Simulate E key release
+            });
+        }
+
+        // --- Mobile Controls Logic ---
+        
+        // Function to request Device Orientation permission (for iOS 13+)
+        function requestGyroPermission() {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            useGyroLook = true;
+                            console.log('Gyroscope permission granted.');
+                             // Optional: Hide the look joystick if using gyro
+                             // lookJoystickArea.style.display = 'none';
+                        } else {
+                             useGyroLook = false;
+                             console.log('Gyroscope permission denied.');
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                // Handle older browsers or non-iOS devices
+                useGyroLook = true; // Assume permission is granted automatically
+                console.log('Gyroscope available without explicit permission request.');
+                 // Optional: Hide the look joystick if using gyro
+                 // lookJoystickArea.style.display = 'none';
+            }
+        }
+
+        // Hide desktop controls and show mobile if on mobile
+        if (isMobile) {
+            mobileControlsContainer.style.display = 'flex'; // Use flex to position children
+            const desktopOverlay = document.querySelector('.overlay');
+            if (desktopOverlay) {
+                desktopOverlay.style.display = 'none';
+            }
+            // Disable pointer lock on mobile
+            document.exitPointerLock = function() {};
+
+            // Add event listener to look joystick to request gyro permission on first touch
+            lookJoystickArea.addEventListener('touchstart', (e) => {
+                 handleJoystickMove(e, true);
+            });
+            lookJoystickArea.addEventListener('touchmove', (e) => handleJoystickMove(e, true));
+            lookJoystickArea.addEventListener('touchend', (e) => handleJoystickEnd(e, true));
+
+             // Add touch listeners for the move joystick
+            moveJoystickArea.addEventListener('touchstart', (e) => handleJoystickMove(e, false));
+            moveJoystickArea.addEventListener('touchmove', (e) => handleJoystickMove(e, false));
+            moveJoystickArea.addEventListener('touchend', (e) => handleJoystickEnd(e, false));
+        }
+
+        function handleJoystickMove(event, isLookJoystick) {
+            event.preventDefault(); // Prevent scrolling
+
+            const joystickArea = isLookJoystick ? lookJoystickArea : moveJoystickArea;
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const maxDistance = Math.min(rect.width, rect.height) / 2;
+
+            // Process all changed touches
+            for (let i = 0; i < event.changedTouches.length; i++) {
+                const touch = event.changedTouches[i];
+                
+                // If this is a new touch starting in the area, assign it
+                if (event.type === 'touchstart' && (event.target === joystickArea || joystickArea.contains(event.target))) {
+                    if (isLookJoystick && lookTouchId === null) {
+                        lookTouchId = touch.identifier;
+                        lookStartTouchX = touch.clientX; // Store initial touch position
+                        lookStartTouchY = touch.clientY;
+                    } else if (!isLookJoystick && moveTouchId === null) {
+                        moveTouchId = touch.identifier;
+                    }
+                }
+
+                // If this touch is the one we are tracking for this joystick
+                if ((isLookJoystick && touch.identifier === lookTouchId) || (!isLookJoystick && touch.identifier === moveTouchId)) {
+                    // Calculate delta relative to the initial touch position for look
+                    let deltaX = touch.clientX - lookStartTouchX;
+                    let deltaY = touch.clientY - lookStartTouchY;
+
+                    // Scale delta to fit within the joystick area's maxDistance for normalization
+                    const scaleFactor = 1.0 / maxDistance; // Adjust sensitivity here if needed
+                    let normalizedX = deltaX * scaleFactor;
+                    let normalizedY = deltaY * scaleFactor;
+
+                    // Clamp normalized values to a range (e.g., -1 to 1)
+                    normalizedX = Math.max(-1, Math.min(1, normalizedX));
+                    normalizedY = Math.max(-1, Math.min(1, normalizedY));
+
+                    if (isLookJoystick) {
+                        lookVector.set(normalizedX, normalizedY);
+                         // Position the look thumbstick relative to the initial touch
+                         const thumb = lookJoystickArea.querySelector('.joystick-thumb');
+                         if (thumb) {
+                             // Position thumb relative to the center of the joystick area
+                             thumb.style.left = `${centerX + deltaX}px`;
+                             thumb.style.top = `${centerY + deltaY}px`;
+                         }
+                    } else {
+                        // Calculate position relative to the center, clamped to the radius for movement
+                        let deltaX = touch.clientX - centerX;
+                        let deltaY = touch.clientY - centerY;
+
+                        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                        // Clamp distance to maxDistance
+                        if (distance > maxDistance) {
+                            const angle = Math.atan2(deltaY, deltaX);
+                            deltaX = Math.cos(angle) * maxDistance;
+                            deltaY = Math.sin(angle) * maxDistance;
+                        }
+
+                        const normalizedX = deltaX / maxDistance;
+                        const normalizedY = deltaY / maxDistance;
+
+                        moveVector.set(normalizedX, normalizedY);
+                         // Position the move thumbstick
+                         const thumb = moveJoystickArea.querySelector('.joystick-thumb');
+                         if (thumb) {
+                              thumb.style.left = `${deltaX + rect.width / 2}px`;
+                              thumb.style.top = `${deltaY + rect.height / 2}px`;
+                         }
+                    }
+                     // console.log(`Joystick ${isLookJoystick ? 'Look' : 'Move'} Updated:`, isLookJoystick ? lookVector : moveVector);
+                }
+            }
+        }
+
+        function handleJoystickEnd(event, isLookJoystick) {
+            event.preventDefault(); // Prevent scrolling
+            const joystickArea = isLookJoystick ? lookJoystickArea : moveJoystickArea;
+
+            // Process all changed touches
+            for (let i = 0; i < event.changedTouches.length; i++) {
+                const touch = event.changedTouches[i];
+                // If this touch is the one we are tracking for this joystick
+                if ((isLookJoystick && touch.identifier === lookTouchId) || (!isLookJoystick && touch.identifier === moveTouchId)) {
+                    if (isLookJoystick) {
+                        lookVector.set(0, 0);
+                        lookTouchId = null; // Clear the tracked touch
+                        lookStartTouchX = 0; // Reset initial touch position
+                        lookStartTouchY = 0;
+                         // Reset look thumbstick position to center
+                         const thumb = lookJoystickArea.querySelector('.joystick-thumb');
+                         if (thumb) {
+                             thumb.style.left = '50%';
+                             thumb.style.top = '50%';
+                         }
+                    } else {
+                        moveVector.set(0, 0);
+                        moveTouchId = null; // Clear the tracked touch
+                         // Reset move thumbstick position to center
+                         const thumb = moveJoystickArea.querySelector('.joystick-thumb');
+                         if (thumb) {
+                             thumb.style.left = '50%';
+                             thumb.style.top = '50%';
+                         }
+                    }
+                    // console.log(`Joystick ${isLookJoystick ? 'Look' : 'Move'} Ended.`);
+                    // Once the relevant touch is handled, we can exit the loop
+                    break;
+                }
+            }
+        }
+
+        if (isMobile) {
+            moveJoystickArea.addEventListener('touchstart', (e) => handleJoystickMove(e, false));
+            moveJoystickArea.addEventListener('touchmove', (e) => handleJoystickMove(e, false));
+            moveJoystickArea.addEventListener('touchend', (e) => handleJoystickEnd(e, false));
+
+            lookJoystickArea.addEventListener('touchstart', (e) => handleJoystickMove(e, true));
+            lookJoystickArea.addEventListener('touchmove', (e) => handleJoystickMove(e, true));
+            lookJoystickArea.addEventListener('touchend', (e) => handleJoystickEnd(e, true));
+        }
+
+        // dedicated to Viktor Antonov. Gone but not forgotten
+    </script>
+</body>
+</html>
